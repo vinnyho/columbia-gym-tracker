@@ -42,22 +42,6 @@ const snapshot = {
       status: 'closed',
       note: 'Closed until further notice beginning April 27 due to water damage repairs.',
     },
-    {
-      id: 'squash-court-1',
-      name: 'Squash Court 1',
-      kind: 'squash_court',
-      location: 'Level 2',
-      status: 'open',
-      note: 'Reservations use the squash court booking portal.',
-    },
-    {
-      id: 'squash-court-2',
-      name: 'Squash Court 2',
-      kind: 'squash_court',
-      location: 'Level 2',
-      status: 'open',
-      note: 'Reservations use the squash court booking portal.',
-    },
   ],
   scheduleBlocks: [
     {
@@ -73,13 +57,6 @@ const snapshot = {
       activity: 'Volleyball',
       startsAt: '2026-07-14T18:00:00-04:00',
       endsAt: '2026-07-14T20:00:00-04:00',
-    },
-    {
-      id: 'squash-court-1-open-play',
-      spaceId: 'squash-court-1',
-      activity: 'Open Squash',
-      startsAt: '2026-07-13T19:00:00-04:00',
-      endsAt: '2026-07-13T20:30:00-04:00',
     },
   ],
   equipment: [
