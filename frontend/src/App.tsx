@@ -52,6 +52,7 @@ type Report = {
   targetType: 'equipment' | 'space'
   targetId: string
   issueType: string
+  authorName: string
   body: string
   createdAt: string
 }
@@ -59,6 +60,7 @@ type Report = {
 type Comment = {
   id: string
   reportId: string
+  authorName: string
   body: string
   createdAt: string
 }
@@ -77,6 +79,7 @@ function App() {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('all')
+  const [authorName, setAuthorName] = useState('')
   const [targetValue, setTargetValue] = useState('')
   const [issueType, setIssueType] = useState('broken')
   const [reportBody, setReportBody] = useState('')
@@ -160,6 +163,7 @@ function App() {
           targetType,
           targetId,
           issueType,
+          authorName,
           body: reportBody,
         }),
       })
@@ -186,7 +190,7 @@ function App() {
       const response = await fetch(`${API_BASE_URL}/api/reports/${reportId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body }),
+        body: JSON.stringify({ authorName, body }),
       })
 
       if (!response.ok) {
@@ -233,6 +237,15 @@ function App() {
           </button>
         ))}
       </nav>
+
+      <label className="identity-card">
+        Posting as
+        <input
+          onChange={(event) => setAuthorName(event.target.value)}
+          placeholder="Anonymous"
+          value={authorName}
+        />
+      </label>
 
       {activeTab === 'all' && (
         <>
@@ -385,10 +398,15 @@ function App() {
                   <p className="eyebrow">{humanize(report.issueType)}</p>
                   <h3>{targetNames.get(report.targetId) ?? report.targetId}</h3>
                   <p>{report.body}</p>
-                  <p className="report-meta">{formatDateTime(report.createdAt)}</p>
+                  <p className="report-meta">
+                    {report.authorName} · {formatDateTime(report.createdAt)}
+                  </p>
                   <div className="comments">
                     {comments.map((comment) => (
-                      <p key={comment.id}>{comment.body}</p>
+                      <p key={comment.id}>
+                        <strong>{comment.authorName}</strong>
+                        {comment.body}
+                      </p>
                     ))}
                   </div>
                   <form

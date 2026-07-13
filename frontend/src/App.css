@@ -82,6 +82,31 @@
   color: white;
 }
 
+.identity-card {
+  max-width: 320px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 800;
+  display: grid;
+  gap: 7px;
+}
+
+.identity-card input {
+  min-height: 38px;
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 500;
+}
+
 .section {
   margin-top: 28px;
 }
@@ -326,6 +351,12 @@ dd {
   padding: 10px 12px;
   border-radius: 8px;
   background: var(--soft);
+}
+
+.comments strong {
+  margin-bottom: 3px;
+  color: var(--ink);
+  display: block;
 }
 
 .report-meta {

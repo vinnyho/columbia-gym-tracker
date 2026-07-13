@@ -99,6 +99,7 @@ const snapshot = {
       targetType: 'equipment',
       targetId: 'squat-rack-4',
       issueType: 'broken',
+      authorName: 'Alex',
       body: 'The right safety pin is missing.',
       createdAt: '2026-07-13T18:42:00-04:00',
     },
@@ -107,6 +108,7 @@ const snapshot = {
       targetType: 'space',
       targetId: 'blue-gym',
       issueType: 'schedule_mismatch',
+      authorName: 'Maya',
       body: 'Court is set up for volleyball, not basketball.',
       createdAt: '2026-07-13T18:55:00-04:00',
     },
@@ -115,12 +117,14 @@ const snapshot = {
     {
       id: 'comment-squat-rack-confirm',
       reportId: 'report-squat-rack-pin',
+      authorName: 'Jordan',
       body: 'Confirmed, still missing as of 7:10 PM.',
       createdAt: '2026-07-13T19:10:00-04:00',
     },
     {
       id: 'comment-blue-gym-context',
       reportId: 'report-blue-gym-lines',
+      authorName: 'Sam',
       body: 'Looks like volleyball ends at 8 PM.',
       createdAt: '2026-07-13T19:12:00-04:00',
     },
@@ -173,7 +177,7 @@ app.get('/api/reports', (_req, res) => {
 });
 
 app.post('/api/reports', (req, res) => {
-  const { targetType, targetId, issueType, body } = req.body;
+  const { targetType, targetId, issueType, body, authorName } = req.body;
   const targetList = targetType === 'space' ? snapshot.spaces : snapshot.equipment;
   const targetExists = targetList.some((target) => target.id === targetId);
 
@@ -194,6 +198,7 @@ app.post('/api/reports', (req, res) => {
     targetType,
     targetId,
     issueType,
+    authorName: cleanAuthorName(authorName),
     body: body.trim(),
     createdAt: new Date().toISOString(),
   };
@@ -217,7 +222,7 @@ app.post('/api/reports', (req, res) => {
 
 app.post('/api/reports/:id/comments', (req, res) => {
   const report = snapshot.reports.find((item) => item.id === req.params.id);
-  const { body } = req.body;
+  const { body, authorName } = req.body;
 
   if (!report || typeof body !== 'string' || body.trim().length === 0) {
     res.status(400).json({ error: 'Invalid comment' });
@@ -227,6 +232,7 @@ app.post('/api/reports/:id/comments', (req, res) => {
   const comment = {
     id: `comment-${Date.now()}`,
     reportId: report.id,
+    authorName: cleanAuthorName(authorName),
     body: body.trim(),
     createdAt: new Date().toISOString(),
   };
@@ -238,3 +244,7 @@ app.post('/api/reports/:id/comments', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Gym tracker API listening on port ${PORT}`);
 });
+
+function cleanAuthorName(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : 'Anonymous';
+}
