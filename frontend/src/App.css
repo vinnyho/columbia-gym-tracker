@@ -50,9 +50,21 @@
   font-size: 20px;
 }
 
+.facility-state.closed strong {
+  color: #c5221f;
+}
+
 .facility-state span {
   margin-top: 4px;
   color: var(--ink-muted);
+}
+
+.facility-state a,
+.source-link {
+  width: fit-content;
+  margin-top: 8px;
+  color: var(--teal);
+  font-weight: 800;
 }
 
 .tabs {
@@ -335,6 +347,16 @@ dd {
 }
 
 .status.broken {
+  background: #ffe4e0;
+  color: #c5221f;
+}
+
+.status.open {
+  background: #e7f4ea;
+  color: #226b36;
+}
+
+.status.closed {
   background: #ffe4e0;
   color: #c5221f;
 }

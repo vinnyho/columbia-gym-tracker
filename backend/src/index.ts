@@ -15,11 +15,12 @@ app.use(express.json());
 
 const snapshot = {
   facility: {
-    id: 'levien-gym',
-    name: 'Levien Gym',
+    id: 'dodge-fitness-center',
+    name: 'Dodge Fitness Center',
     status: 'open',
-    hoursLabel: 'Open until 10:00 PM',
+    hoursLabel: 'Summer hours: Mon-Fri 6 AM-10 PM, Sat-Sun 8 AM-8 PM',
     timezone: 'America/New_York',
+    sourceUrl: 'https://perec.columbia.edu/hours-operation',
   },
   spaces: [
     {
@@ -27,18 +28,34 @@ const snapshot = {
       name: 'Blue Gym',
       kind: 'multi_purpose_court',
       location: 'Level 1',
+      status: 'open',
+      note: 'Activity changes by open recreation calendar.',
+      calendarUrl:
+        'https://calendar.google.com/calendar/embed?height=600&wkst=1&bgcolor=%2399caea&ctz=America%2FNew_York&title=Blue%20Gym&mode=WEEK&showCalendars=0&showPrint=0&showTitle=0&src=Y3VwZXJlY0BnbWFpbC5jb20&color=%23F6BF26',
+    },
+    {
+      id: 'levien-gymnasium',
+      name: 'Levien Gymnasium',
+      kind: 'gymnasium',
+      location: 'Level 2',
+      status: 'closed',
+      note: 'Closed until further notice beginning April 27 due to water damage repairs.',
     },
     {
       id: 'squash-court-1',
       name: 'Squash Court 1',
       kind: 'squash_court',
       location: 'Level 2',
+      status: 'open',
+      note: 'Reservations use the squash court booking portal.',
     },
     {
       id: 'squash-court-2',
       name: 'Squash Court 2',
       kind: 'squash_court',
       location: 'Level 2',
+      status: 'open',
+      note: 'Reservations use the squash court booking portal.',
     },
   ],
   scheduleBlocks: [

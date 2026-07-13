@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS facilities (
   name TEXT NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('open', 'closed')),
   hours_label TEXT NOT NULL,
-  timezone TEXT NOT NULL
+  timezone TEXT NOT NULL,
+  source_url TEXT
 );
 
 CREATE TABLE IF NOT EXISTS spaces (
@@ -11,7 +12,10 @@ CREATE TABLE IF NOT EXISTS spaces (
   facility_id TEXT NOT NULL REFERENCES facilities(id),
   name TEXT NOT NULL,
   kind TEXT NOT NULL,
-  location TEXT NOT NULL
+  location TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('open', 'closed')),
+  note TEXT NOT NULL,
+  calendar_url TEXT
 );
 
 CREATE TABLE IF NOT EXISTS schedule_blocks (

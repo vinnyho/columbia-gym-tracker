@@ -7,6 +7,7 @@ type FacilitySnapshot = {
     name: string
     status: string
     hoursLabel: string
+    sourceUrl: string
   }
   spaces: Space[]
   scheduleBlocks: ScheduleBlock[]
@@ -21,6 +22,9 @@ type Space = {
   name: string
   kind: string
   location: string
+  status: string
+  note: string
+  calendarUrl?: string
 }
 
 type ScheduleBlock = {
@@ -219,9 +223,12 @@ function App() {
           <p className="eyebrow">Gym Facility Tracker</p>
           <h1>{snapshot.facility.name}</h1>
         </div>
-        <div className="facility-state">
+        <div className={`facility-state ${snapshot.facility.status}`}>
           <strong>{titleCase(snapshot.facility.status)}</strong>
           <span>{snapshot.facility.hoursLabel}</span>
+          <a href={snapshot.facility.sourceUrl} rel="noreferrer" target="_blank">
+            Columbia hours
+          </a>
         </div>
       </header>
 
@@ -265,6 +272,20 @@ function App() {
                     <p className="eyebrow">{humanize(space.kind)}</p>
                     <h3>{space.name}</h3>
                     <p>{space.location}</p>
+                    <span className={`status ${space.status}`}>
+                      {titleCase(space.status)}
+                    </span>
+                    <p>{space.note}</p>
+                    {space.calendarUrl && (
+                      <a
+                        className="source-link"
+                        href={space.calendarUrl}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        Blue Gym calendar
+                      </a>
+                    )}
                     <div className="schedule-list">
                       <div>
                         <span>Now</span>
