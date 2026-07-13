@@ -2,6 +2,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
+import { Pool } from 'pg';
 
 dotenv.config();
 
@@ -9,6 +10,16 @@ const app = express();
 const PORT = process.env.PORT || 5001;
 const BLUE_GYM_ICS_URL =
   'https://calendar.google.com/calendar/ical/cuperec%40gmail.com/public/basic.ics';
+const databaseUrl = process.env.DATABASE_URL?.trim();
+const databasePool =
+  databaseUrl && !databaseUrl.includes('user:password@localhost')
+    ? new Pool({
+        connectionString: databaseUrl,
+        ssl: shouldUseDatabaseSsl(databaseUrl)
+          ? { rejectUnauthorized: false }
+          : undefined,
+      })
+    : null;
 
 app.use(helmet());
 app.use(cors());
@@ -365,6 +376,42 @@ type ScheduleBlock = {
   endsAt: string;
 };
 
+type Report = {
+  id: string;
+  targetType: 'equipment' | 'space';
+  targetId: string;
+  issueType: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+};
+
+type Comment = {
+  id: string;
+  reportId: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+};
+
+type ReportRow = {
+  id: string;
+  target_type: 'equipment' | 'space';
+  target_id: string;
+  issue_type: string;
+  author_name: string;
+  body: string;
+  created_at: Date | string;
+};
+
+type CommentRow = {
+  id: string;
+  report_id: string;
+  author_name: string;
+  body: string;
+  created_at: Date | string;
+};
+
 let blueGymCalendarCache:
   | { expiresAt: number; blocks: ScheduleBlock[] }
   | null = null;
@@ -373,12 +420,25 @@ app.get('/api/facility', async (_req, res) => {
   const currentTime = new Date();
   const scheduleBlocks = await getScheduleBlocks(currentTime);
 
+  let reportData: { reports: Report[]; comments: Comment[] };
+
+  try {
+    reportData = await getReportsSnapshot();
+  } catch (error) {
+    console.error('Could not load reports', error);
+    res.status(500).json({ error: 'Could not load facility reports' });
+    return;
+  }
+
   res.json({
     ...snapshot,
     facility: {
       ...snapshot.facility,
       ...getFacilityAvailability(currentTime),
     },
+    equipment: buildEquipmentStatus(reportData.reports),
+    reports: reportData.reports,
+    comments: reportData.comments,
     scheduleBlocks,
     spaceStatuses: buildSpaceStatuses(scheduleBlocks, currentTime),
   });
@@ -388,18 +448,26 @@ app.get('/api/spaces', (_req, res) => {
   res.json(snapshot.spaces);
 });
 
-app.get('/api/equipment', (_req, res) => {
-  res.json(snapshot.equipment);
+app.get('/api/equipment', async (_req, res) => {
+  try {
+    const { reports } = await getReportsSnapshot();
+    res.json(buildEquipmentStatus(reports));
+  } catch (error) {
+    console.error('Could not load equipment reports', error);
+    res.status(500).json({ error: 'Could not load equipment' });
+  }
 });
 
-app.get('/api/reports', (_req, res) => {
-  res.json({
-    reports: snapshot.reports,
-    comments: snapshot.comments,
-  });
+app.get('/api/reports', async (_req, res) => {
+  try {
+    res.json(await getReportsSnapshot());
+  } catch (error) {
+    console.error('Could not load reports', error);
+    res.status(500).json({ error: 'Could not load reports' });
+  }
 });
 
-app.post('/api/reports', (req, res) => {
+app.post('/api/reports', async (req, res) => {
   const { targetType, targetId, issueType, body, authorName } = req.body;
   const targetList = targetType === 'space' ? snapshot.spaces : snapshot.equipment;
   const targetExists = targetList.some((target) => target.id === targetId);
@@ -416,7 +484,7 @@ app.post('/api/reports', (req, res) => {
     return;
   }
 
-  const report = {
+  const report: Report = {
     id: `report-${Date.now()}`,
     targetType,
     targetId,
@@ -426,7 +494,17 @@ app.post('/api/reports', (req, res) => {
     createdAt: new Date().toISOString(),
   };
 
-  snapshot.reports.unshift(report);
+  try {
+    await saveReport(report);
+  } catch (error) {
+    console.error('Could not save report', error);
+    res.status(500).json({ error: 'Could not save report' });
+    return;
+  }
+
+  if (!databasePool) {
+    snapshot.reports.unshift(report);
+  }
 
   if (
     targetType === 'equipment' &&
@@ -452,8 +530,17 @@ app.post('/api/reports', (req, res) => {
   res.status(201).json(report);
 });
 
-app.post('/api/reports/:id/comments', (req, res) => {
-  const report = snapshot.reports.find((item) => item.id === req.params.id);
+app.post('/api/reports/:id/comments', async (req, res) => {
+  let report: Report | null;
+
+  try {
+    report = await findReport(req.params.id);
+  } catch (error) {
+    console.error('Could not load report', error);
+    res.status(500).json({ error: 'Could not load report' });
+    return;
+  }
+
   const { body, authorName } = req.body;
 
   if (!report || typeof body !== 'string' || body.trim().length === 0) {
@@ -461,7 +548,7 @@ app.post('/api/reports/:id/comments', (req, res) => {
     return;
   }
 
-  const comment = {
+  const comment: Comment = {
     id: `comment-${Date.now()}`,
     reportId: report.id,
     authorName: cleanAuthorName(authorName),
@@ -469,7 +556,18 @@ app.post('/api/reports/:id/comments', (req, res) => {
     createdAt: new Date().toISOString(),
   };
 
-  snapshot.comments.push(comment);
+  try {
+    await saveComment(comment);
+  } catch (error) {
+    console.error('Could not save comment', error);
+    res.status(500).json({ error: 'Could not save comment' });
+    return;
+  }
+
+  if (!databasePool) {
+    snapshot.comments.push(comment);
+  }
+
   res.status(201).json(comment);
 });
 
@@ -477,8 +575,139 @@ app.listen(PORT, () => {
   console.log(`Gym tracker API listening on port ${PORT}`);
 });
 
+function shouldUseDatabaseSsl(value: string) {
+  return !value.includes('localhost') && !value.includes('127.0.0.1');
+}
+
 function cleanAuthorName(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : 'Anonymous';
+}
+
+async function getReportsSnapshot() {
+  if (!databasePool) {
+    return {
+      reports: snapshot.reports as Report[],
+      comments: snapshot.comments as Comment[],
+    };
+  }
+
+  const [reportResult, commentResult] = await Promise.all([
+    databasePool.query<ReportRow>(
+      `SELECT id, target_type, target_id, issue_type, author_name, body, created_at
+       FROM reports
+       ORDER BY created_at DESC`,
+    ),
+    databasePool.query<CommentRow>(
+      `SELECT id, report_id, author_name, body, created_at
+       FROM comments
+       ORDER BY created_at ASC`,
+    ),
+  ]);
+
+  return {
+    reports: reportResult.rows.map(mapReportRow),
+    comments: commentResult.rows.map(mapCommentRow),
+  };
+}
+
+async function saveReport(report: Report) {
+  if (!databasePool) return;
+
+  await databasePool.query(
+    `INSERT INTO reports (
+      id, target_type, target_id, issue_type, author_name, body, created_at
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      report.id,
+      report.targetType,
+      report.targetId,
+      report.issueType,
+      report.authorName,
+      report.body,
+      report.createdAt,
+    ],
+  );
+}
+
+async function saveComment(comment: Comment) {
+  if (!databasePool) return;
+
+  await databasePool.query(
+    `INSERT INTO comments (id, report_id, author_name, body, created_at)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [
+      comment.id,
+      comment.reportId,
+      comment.authorName,
+      comment.body,
+      comment.createdAt,
+    ],
+  );
+}
+
+async function findReport(id: string) {
+  if (!databasePool) {
+    return (snapshot.reports as Report[]).find((item) => item.id === id) ?? null;
+  }
+
+  const result = await databasePool.query<ReportRow>(
+    `SELECT id, target_type, target_id, issue_type, author_name, body, created_at
+     FROM reports
+     WHERE id = $1`,
+    [id],
+  );
+
+  return result.rows[0] ? mapReportRow(result.rows[0]) : null;
+}
+
+function buildEquipmentStatus(reports: Report[]) {
+  const equipment = snapshot.equipment.map((item) => ({ ...item }));
+
+  for (const report of reports.slice().reverse()) {
+    if (report.targetType !== 'equipment') continue;
+
+    const item = equipment.find((candidate) => candidate.id === report.targetId);
+    if (!item) continue;
+
+    if (report.issueType === 'broken' || report.issueType === 'missing_parts') {
+      item.status = 'broken';
+      item.summary = report.body;
+    }
+
+    if (report.issueType === 'fixed') {
+      item.status = 'available';
+      item.summary = report.body;
+    }
+  }
+
+  return equipment;
+}
+
+function mapReportRow(row: ReportRow): Report {
+  return {
+    id: row.id,
+    targetType: row.target_type,
+    targetId: row.target_id,
+    issueType: row.issue_type,
+    authorName: row.author_name,
+    body: row.body,
+    createdAt: formatDatabaseTimestamp(row.created_at),
+  };
+}
+
+function mapCommentRow(row: CommentRow): Comment {
+  return {
+    id: row.id,
+    reportId: row.report_id,
+    authorName: row.author_name,
+    body: row.body,
+    createdAt: formatDatabaseTimestamp(row.created_at),
+  };
+}
+
+function formatDatabaseTimestamp(value: Date | string) {
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
 async function getScheduleBlocks(currentTime: Date) {
