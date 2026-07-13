@@ -69,11 +69,12 @@ type Comment = {
   createdAt: string
 }
 
-type Tab = 'all' | 'report' | 'activity'
+type Tab = 'all' | 'schedule' | 'report' | 'activity'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5001'
 const tabs: { id: Tab; label: string }[] = [
   { id: 'all', label: 'All' },
+  { id: 'schedule', label: 'Schedule' },
   { id: 'report', label: 'Report' },
   { id: 'activity', label: 'Activity' },
 ]
@@ -399,6 +400,36 @@ function App() {
             <button type="submit">Add report</button>
             {formMessage && <p className="form-message">{formMessage}</p>}
           </form>
+        </section>
+      )}
+
+      {activeTab === 'schedule' && (
+        <section className="section">
+          <div className="section-heading">
+            <p className="eyebrow">Upcoming activity</p>
+            <h2>Schedule</h2>
+          </div>
+          <div className="list">
+            {snapshot.scheduleBlocks
+              .slice()
+              .sort(
+                (first, second) =>
+                  new Date(first.startsAt).getTime() -
+                  new Date(second.startsAt).getTime(),
+              )
+              .map((block) => (
+                <article className="row schedule-row" key={block.id}>
+                  <div>
+                    <h3>{block.activity}</h3>
+                    <p>{targetNames.get(block.spaceId) ?? block.spaceId}</p>
+                  </div>
+                  <p>{formatDateTime(block.startsAt)}</p>
+                  <p>
+                    {formatTime(block.startsAt)} - {formatTime(block.endsAt)}
+                  </p>
+                </article>
+              ))}
+          </div>
         </section>
       )}
 

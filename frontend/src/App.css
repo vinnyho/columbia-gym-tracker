@@ -328,6 +328,10 @@ dd {
   border-top: 1px solid var(--line);
 }
 
+.schedule-row {
+  grid-template-columns: 1.4fr 180px 170px;
+}
+
 .status {
   width: fit-content;
   padding: 7px 10px;
@@ -420,6 +424,6 @@ button:focus-visible {
   .tabs {
     width: 100%;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 }
