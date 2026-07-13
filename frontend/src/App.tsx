@@ -65,6 +65,7 @@ type Report = {
   issueType: string
   authorName: string
   body: string
+  photoKey?: string
   photoUrl?: string
   createdAt: string
   confirmCount?: number
@@ -301,14 +302,9 @@ function App() {
 
     try {
       setFormMessage('')
-      let photoUrl = ''
+      let photoKey = ''
 
       if (reportPhoto) {
-        if (!supabase) {
-          setFormMessage('Photo uploads need Supabase configured.')
-          return
-        }
-
         if (!reportPhoto.type.startsWith('image/')) {
           setFormMessage('Choose an image file for the photo.')
           return
@@ -320,20 +316,39 @@ function App() {
         }
 
         setIsUploadingPhoto(true)
-        const photoPath = `${session.user.id}/${Date.now()}-${sanitizeFileName(reportPhoto.name)}`
-        const { error: uploadError } = await supabase.storage
-          .from('report-photos')
-          .upload(photoPath, reportPhoto, {
+        const presignResponse = await fetch(`${API_BASE_URL}/api/report-photo-upload`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fileName: sanitizeFileName(reportPhoto.name),
             contentType: reportPhoto.type,
-            upsert: false,
-          })
+          }),
+        })
 
-        if (uploadError) {
-          throw uploadError
+        if (!presignResponse.ok) {
+          throw new Error('Photo upload could not start')
         }
 
-        const { data } = supabase.storage.from('report-photos').getPublicUrl(photoPath)
-        photoUrl = data.publicUrl
+        const presign = (await presignResponse.json()) as {
+          uploadUrl: string
+          photoKey: string
+        }
+        const uploadResponse = await fetch(presign.uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': reportPhoto.type,
+          },
+          body: reportPhoto,
+        })
+
+        if (!uploadResponse.ok) {
+          throw new Error('Photo upload failed')
+        }
+
+        photoKey = presign.photoKey
       }
 
       const response = await fetch(`${API_BASE_URL}/api/reports`, {
@@ -347,7 +362,7 @@ function App() {
           targetId,
           issueType,
           body: reportBody,
-          photoUrl: photoUrl || undefined,
+          photoKey: photoKey || undefined,
         }),
       })
 

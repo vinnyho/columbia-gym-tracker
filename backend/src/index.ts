@@ -4,6 +4,8 @@ import express from 'express';
 import type { Request } from 'express';
 import helmet from 'helmet';
 import { Pool } from 'pg';
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 dotenv.config();
 
@@ -12,9 +14,12 @@ const BLUE_GYM_ICS_URL =
   'https://calendar.google.com/calendar/ical/cuperec%40gmail.com/public/basic.ics';
 const SUPABASE_URL = process.env.SUPABASE_URL?.trim();
 const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY?.trim();
+const AWS_REGION = process.env.AWS_REGION?.trim();
+const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME?.trim();
 const equipmentIssueTypes = new Set(['broken', 'fixed', 'cleanliness', 'missing_parts']);
 const spaceIssueTypes = new Set(['schedule_mismatch', 'cleanliness']);
 const reportVoteValues = new Set(['confirm', 'dispute']);
+const allowedPhotoTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 const databaseUrl = process.env.DATABASE_URL?.trim();
 const databasePool =
   databaseUrl && !databaseUrl.includes('user:password@localhost')
@@ -24,6 +29,10 @@ const databasePool =
           ? { rejectUnauthorized: false }
           : undefined,
       })
+    : null;
+const s3Client =
+  AWS_REGION && S3_BUCKET_NAME
+    ? new S3Client({ region: AWS_REGION })
     : null;
 let publishRealtimeUpdate: (payload: RealtimeUpdate) => Promise<void> | void = () =>
   undefined;
@@ -395,6 +404,7 @@ type Report = {
   issueType: string;
   authorName: string;
   body: string;
+  photoKey?: string;
   photoUrl?: string;
   createdAt: string;
   confirmCount?: number;
@@ -433,6 +443,7 @@ type ReportRow = {
   issue_type: string;
   author_name: string;
   body: string;
+  photo_key: string | null;
   photo_url: string | null;
   created_at: Date | string;
 };
@@ -509,6 +520,44 @@ app.get('/api/reports', async (req, res) => {
   }
 });
 
+app.post('/api/report-photo-upload', async (req, res) => {
+  const user = await getRequestUser(req);
+
+  if (!user) {
+    res.status(401).json({ error: 'Sign in with a Columbia email to upload photos.' });
+    return;
+  }
+
+  if (!s3Client || !S3_BUCKET_NAME) {
+    res.status(503).json({ error: 'S3 uploads are not configured.' });
+    return;
+  }
+
+  const { fileName, contentType } = req.body;
+
+  if (
+    typeof fileName !== 'string' ||
+    typeof contentType !== 'string' ||
+    !allowedPhotoTypes.has(contentType)
+  ) {
+    res.status(400).json({ error: 'Invalid photo upload request' });
+    return;
+  }
+
+  const photoKey = `reports/${slugify(user.email)}/${Date.now()}-${sanitizeFileName(fileName)}`;
+  const uploadUrl = await getSignedUrl(
+    s3Client,
+    new PutObjectCommand({
+      Bucket: S3_BUCKET_NAME,
+      Key: photoKey,
+      ContentType: contentType,
+    }),
+    { expiresIn: 5 * 60 },
+  );
+
+  res.json({ uploadUrl, photoKey });
+});
+
 app.post('/api/reports', async (req, res) => {
   const user = await getRequestUser(req);
 
@@ -518,6 +567,8 @@ app.post('/api/reports', async (req, res) => {
   }
 
   const { targetType, targetId, issueType, body } = req.body;
+  const photoKey =
+    typeof req.body.photoKey === 'string' ? req.body.photoKey.trim() : '';
   const photoUrl =
     typeof req.body.photoUrl === 'string' ? req.body.photoUrl.trim() : '';
   const targetList = targetType === 'space' ? snapshot.spaces : snapshot.equipment;
@@ -530,6 +581,7 @@ app.post('/api/reports', async (req, res) => {
     !isValidIssueType(targetType, issueType) ||
     typeof body !== 'string' ||
     body.trim().length === 0 ||
+    (photoKey && !isValidPhotoKey(photoKey, user.email)) ||
     (photoUrl && !isValidPhotoUrl(photoUrl)) ||
     !targetExists
   ) {
@@ -544,6 +596,7 @@ app.post('/api/reports', async (req, res) => {
     issueType,
     authorName: user.email,
     body: body.trim(),
+    ...(photoKey ? { photoKey } : {}),
     ...(photoUrl ? { photoUrl } : {}),
     createdAt: new Date().toISOString(),
   };
@@ -774,6 +827,14 @@ function isValidPhotoUrl(value: string) {
   }
 }
 
+function isValidPhotoKey(value: string, email: string) {
+  return (
+    value.startsWith(`reports/${slugify(email)}/`) &&
+    !value.includes('..') &&
+    value.length <= 500
+  );
+}
+
 function notifyFacilityUpdate(update: Omit<RealtimeUpdate, 'createdAt'>) {
   Promise.resolve(
     publishRealtimeUpdate({
@@ -788,9 +849,10 @@ function notifyFacilityUpdate(update: Omit<RealtimeUpdate, 'createdAt'>) {
 async function getReportsSnapshot(viewerEmail?: string) {
   if (!databasePool) {
     const votes = snapshot.votes as ReportVote[];
+    const reports = addVoteCounts(snapshot.reports as Report[], votes, viewerEmail);
 
     return {
-      reports: addVoteCounts(snapshot.reports as Report[], votes, viewerEmail),
+      reports: await addReportPhotoUrls(reports),
       comments: snapshot.comments as Comment[],
       votes,
     };
@@ -798,7 +860,7 @@ async function getReportsSnapshot(viewerEmail?: string) {
 
   const [reportResult, commentResult, voteResult] = await Promise.all([
     databasePool.query<ReportRow>(
-      `SELECT id, target_type, target_id, issue_type, author_name, body, photo_url, created_at
+      `SELECT id, target_type, target_id, issue_type, author_name, body, photo_key, photo_url, created_at
        FROM reports
        ORDER BY created_at DESC`,
     ),
@@ -816,7 +878,9 @@ async function getReportsSnapshot(viewerEmail?: string) {
   const votes = voteResult.rows.map(mapReportVoteRow);
 
   return {
-    reports: addVoteCounts(reportResult.rows.map(mapReportRow), votes, viewerEmail),
+    reports: await addReportPhotoUrls(
+      addVoteCounts(reportResult.rows.map(mapReportRow), votes, viewerEmail),
+    ),
     comments: commentResult.rows.map(mapCommentRow),
     votes,
   };
@@ -827,9 +891,9 @@ async function saveReport(report: Report) {
 
   await databasePool.query(
     `INSERT INTO reports (
-      id, target_type, target_id, issue_type, author_name, body, photo_url, created_at
+      id, target_type, target_id, issue_type, author_name, body, photo_key, photo_url, created_at
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     [
       report.id,
       report.targetType,
@@ -837,6 +901,7 @@ async function saveReport(report: Report) {
       report.issueType,
       report.authorName,
       report.body,
+      report.photoKey ?? null,
       report.photoUrl ?? null,
       report.createdAt,
     ],
@@ -877,7 +942,7 @@ async function findReport(id: string) {
   }
 
   const result = await databasePool.query<ReportRow>(
-    `SELECT id, target_type, target_id, issue_type, author_name, body, photo_url, created_at
+    `SELECT id, target_type, target_id, issue_type, author_name, body, photo_key, photo_url, created_at
      FROM reports
      WHERE id = $1`,
     [id],
@@ -952,6 +1017,27 @@ function addVoteCounts(reports: Report[], votes: ReportVote[], viewerEmail?: str
   });
 }
 
+async function addReportPhotoUrls(reports: Report[]) {
+  return Promise.all(
+    reports.map(async (report) => {
+      if (!report.photoKey || !s3Client || !S3_BUCKET_NAME) {
+        return report;
+      }
+
+      const photoUrl = await getSignedUrl(
+        s3Client,
+        new GetObjectCommand({
+          Bucket: S3_BUCKET_NAME,
+          Key: report.photoKey,
+        }),
+        { expiresIn: 15 * 60 },
+      );
+
+      return { ...report, photoUrl };
+    }),
+  );
+}
+
 function getReportScore(report: Report, confirmCount: number, disputeCount: number) {
   const direction = getReportDirection(report.issueType);
 
@@ -979,6 +1065,7 @@ function mapReportRow(row: ReportRow): Report {
     issueType: row.issue_type,
     authorName: row.author_name,
     body: row.body,
+    ...(row.photo_key ? { photoKey: row.photo_key } : {}),
     ...(row.photo_url ? { photoUrl: row.photo_url } : {}),
     createdAt: formatDatabaseTimestamp(row.created_at),
   };
@@ -1273,6 +1360,13 @@ function dayCode(value: Date) {
 
 function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function sanitizeFileName(value: string) {
+  return (
+    value.toLowerCase().replace(/[^a-z0-9.]+/g, '-').replace(/^-+|-+$/g, '') ||
+    'report-photo'
+  );
 }
 
 function getFacilityAvailability(currentTime: Date) {
