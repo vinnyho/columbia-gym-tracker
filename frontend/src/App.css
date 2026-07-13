@@ -271,6 +271,19 @@ dd {
   opacity: 0.65;
 }
 
+.secondary-button {
+  min-height: 38px;
+  width: fit-content;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: white;
+  color: var(--teal);
+  font: inherit;
+  font-weight: 800;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
 .profile-stats {
   display: flex;
   gap: 10px;
@@ -320,6 +333,10 @@ dd {
   margin-top: 18px;
   display: grid;
   gap: 10px;
+}
+
+.schedule-list + .secondary-button {
+  margin-top: 14px;
 }
 
 .schedule-list div,
@@ -465,7 +482,7 @@ dd {
   border-radius: 0;
   padding: 16px 18px;
   display: grid;
-  grid-template-columns: 1.3fr 120px 1fr;
+  grid-template-columns: 1.2fr 110px 1fr auto;
   gap: 18px;
   align-items: center;
 }

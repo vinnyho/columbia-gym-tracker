@@ -366,6 +366,18 @@ function App() {
     setAuthMessage('')
   }
 
+  function startReport(
+    targetType: 'equipment' | 'space',
+    targetId: string,
+    nextIssueType = 'broken',
+  ) {
+    setTargetValue(`${targetType}:${targetId}`)
+    setIssueType(nextIssueType)
+    setReportBody('')
+    setFormMessage('')
+    setActiveTab('report')
+  }
+
   if (isLoading) {
     return <MessageCard title="Loading facility" body="Reading the backend snapshot..." />
   }
@@ -458,6 +470,13 @@ function App() {
                         )}
                       </div>
                     </div>
+                    <button
+                      className="secondary-button"
+                      onClick={() => startReport('space', space.id, 'schedule_mismatch')}
+                      type="button"
+                    >
+                      Report space
+                    </button>
                   </article>
                 )
               })}
@@ -532,6 +551,13 @@ function App() {
                     {titleCase(item.status)}
                   </span>
                   <p>{item.summary}</p>
+                  <button
+                    className="secondary-button"
+                    onClick={() => startReport('equipment', item.id)}
+                    type="button"
+                  >
+                    Report
+                  </button>
                 </article>
               ))}
               {visibleEquipment.length === 0 && (
