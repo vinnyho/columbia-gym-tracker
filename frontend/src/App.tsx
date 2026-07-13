@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import { createClient } from '@supabase/supabase-js'
+import type { Session } from '@supabase/supabase-js'
 import './App.css'
 
 type FacilitySnapshot = {
@@ -72,6 +74,12 @@ type Comment = {
 type Tab = 'all' | 'schedule' | 'report' | 'activity' | 'profile'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5001'
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+const supabase =
+  SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+    : null
 const tabs: { id: Tab; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'schedule', label: 'Schedule' },
@@ -86,6 +94,10 @@ function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('all')
   const [authorName, setAuthorName] = useState('')
+  const [authEmail, setAuthEmail] = useState('')
+  const [authMessage, setAuthMessage] = useState('')
+  const [isSendingAuthEmail, setIsSendingAuthEmail] = useState(false)
+  const [session, setSession] = useState<Session | null>(null)
   const [floorFilter, setFloorFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -151,6 +163,29 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!supabase) return
+
+    let ignore = false
+
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!ignore) {
+        setSession(data.session)
+      }
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession)
+    })
+
+    return () => {
+      ignore = true
+      subscription.unsubscribe()
+    }
+  }, [])
+
   const targetNames = useMemo(() => {
     if (!snapshot) return new Map<string, string>()
 
@@ -159,7 +194,8 @@ function App() {
       ...snapshot.spaces.map((space) => [space.id, space.name] as const),
     ])
   }, [snapshot])
-  const displayName = authorName.trim() || 'Anonymous'
+  const signedInEmail = session?.user.email ?? ''
+  const displayName = signedInEmail || authorName.trim() || 'Anonymous'
   const ownReportCount = snapshot
     ? snapshot.reports.filter((report) => report.authorName === displayName).length
     : 0
@@ -210,7 +246,7 @@ function App() {
           targetType,
           targetId,
           issueType,
-          authorName,
+          authorName: displayName,
           body: reportBody,
         }),
       })
@@ -237,7 +273,7 @@ function App() {
       const response = await fetch(`${API_BASE_URL}/api/reports/${reportId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ authorName, body }),
+        body: JSON.stringify({ authorName: displayName, body }),
       })
 
       if (!response.ok) {
@@ -249,6 +285,50 @@ function App() {
     } catch {
       setFormMessage('Could not add comment.')
     }
+  }
+
+  async function submitAuthEmail(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!supabase) {
+      setAuthMessage('Supabase is not configured for this frontend.')
+      return
+    }
+
+    const email = authEmail.trim().toLowerCase()
+
+    if (!email.endsWith('@columbia.edu')) {
+      setAuthMessage('Use your Columbia email address.')
+      return
+    }
+
+    try {
+      setIsSendingAuthEmail(true)
+      setAuthMessage('')
+      const { error: authError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
+      })
+
+      if (authError) {
+        throw authError
+      }
+
+      setAuthMessage('Check your Columbia email for the login link.')
+    } catch {
+      setAuthMessage('Could not send login email.')
+    } finally {
+      setIsSendingAuthEmail(false)
+    }
+  }
+
+  async function signOut() {
+    if (!supabase) return
+
+    await supabase.auth.signOut()
+    setAuthMessage('')
   }
 
   if (isLoading) {
@@ -437,14 +517,21 @@ function App() {
             </p>
           </div>
           <form className="form-card" onSubmit={submitReport}>
-            <label>
-              Your name
-              <input
-                onChange={(event) => setAuthorName(event.target.value)}
-                placeholder="Anonymous"
-                value={authorName}
-              />
-            </label>
+            {signedInEmail ? (
+              <div className="posting-summary">
+                <span>Posting as</span>
+                <strong>{signedInEmail}</strong>
+              </div>
+            ) : (
+              <label>
+                Your name
+                <input
+                  onChange={(event) => setAuthorName(event.target.value)}
+                  placeholder="Anonymous"
+                  value={authorName}
+                />
+              </label>
+            )}
             <label>
               Target
               <select
@@ -571,7 +658,7 @@ function App() {
                           [report.id]: event.target.value,
                         }))
                       }
-                      placeholder="Add a comment"
+                      placeholder={`Add a comment as ${displayName}`}
                       required
                       value={commentBodies[report.id] ?? ''}
                     />
@@ -594,15 +681,32 @@ function App() {
             </p>
           </div>
           <div className="profile-card">
-            <label className="profile-name-field">
-              <p className="eyebrow">Posting as</p>
-              <input
-                onChange={(event) => setAuthorName(event.target.value)}
-                placeholder="Anonymous"
-                value={authorName}
-              />
-              <span>{displayName}</span>
-            </label>
+            {signedInEmail ? (
+              <div className="auth-panel">
+                <p className="eyebrow">Signed in</p>
+                <strong>{signedInEmail}</strong>
+                <button onClick={signOut} type="button">
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <form className="auth-panel" onSubmit={submitAuthEmail}>
+                <p className="eyebrow">Columbia login</p>
+                <label>
+                  Email
+                  <input
+                    onChange={(event) => setAuthEmail(event.target.value)}
+                    placeholder="uni@columbia.edu"
+                    type="email"
+                    value={authEmail}
+                  />
+                </label>
+                <button disabled={isSendingAuthEmail} type="submit">
+                  {isSendingAuthEmail ? 'Sending...' : 'Email login link'}
+                </button>
+                {authMessage && <p>{authMessage}</p>}
+              </form>
+            )}
             <div className="profile-stats">
               <div>
                 <strong>{ownReportCount}</strong>

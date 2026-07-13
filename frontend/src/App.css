@@ -182,7 +182,8 @@ dd {
   align-items: center;
 }
 
-.profile-name-field {
+.auth-panel,
+.posting-summary {
   color: var(--ink-muted);
   font-size: 13px;
   font-weight: 800;
@@ -190,7 +191,7 @@ dd {
   gap: 8px;
 }
 
-.profile-name-field input {
+.auth-panel input {
   min-height: 42px;
   width: min(360px, 100%);
   border: 1px solid var(--line-strong);
@@ -201,9 +202,39 @@ dd {
   font-weight: 500;
 }
 
-.profile-name-field span {
+.auth-panel strong,
+.posting-summary strong {
   color: var(--ink);
   font-size: 20px;
+}
+
+.auth-panel p,
+.auth-panel label,
+.posting-summary span {
+  margin: 0;
+}
+
+.auth-panel label {
+  display: grid;
+  gap: 7px;
+}
+
+.auth-panel button {
+  min-height: 40px;
+  width: fit-content;
+  border: 0;
+  border-radius: 8px;
+  background: var(--teal);
+  color: white;
+  font: inherit;
+  font-weight: 800;
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+.auth-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .profile-stats {
@@ -334,6 +365,11 @@ dd {
   font-weight: 800;
   display: grid;
   gap: 7px;
+}
+
+.posting-summary {
+  min-height: 42px;
+  align-content: center;
 }
 
 .form-card select,
