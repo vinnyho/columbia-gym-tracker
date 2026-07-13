@@ -167,6 +167,10 @@ app.get('/api/facility', async (_req, res) => {
 
   res.json({
     ...snapshot,
+    facility: {
+      ...snapshot.facility,
+      ...getFacilityAvailability(currentTime),
+    },
     scheduleBlocks,
     spaceStatuses: buildSpaceStatuses(scheduleBlocks, currentTime),
   });
@@ -513,4 +517,76 @@ function dayCode(value: Date) {
 
 function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function getFacilityAvailability(currentTime: Date) {
+  const current = getNewYorkTimeParts(currentTime);
+  const todayHours = buildingHoursForDay(current.weekday);
+  const currentMinutes = current.hour * 60 + current.minute;
+
+  if (
+    currentMinutes >= todayHours.opensAt &&
+    currentMinutes < todayHours.closesAt
+  ) {
+    return {
+      status: 'open',
+      hoursLabel: `Open until ${formatMinutes(todayHours.closesAt)}`,
+    };
+  }
+
+  if (currentMinutes < todayHours.opensAt) {
+    return {
+      status: 'closed',
+      hoursLabel: `Closed - opens at ${formatMinutes(todayHours.opensAt)}`,
+    };
+  }
+
+  const tomorrowHours = buildingHoursForDay((current.weekday + 1) % 7);
+
+  return {
+    status: 'closed',
+    hoursLabel: `Closed - opens tomorrow at ${formatMinutes(
+      tomorrowHours.opensAt,
+    )}`,
+  };
+}
+
+function buildingHoursForDay(weekday: number) {
+  const isWeekend = weekday === 0 || weekday === 6;
+
+  return {
+    opensAt: isWeekend ? 8 * 60 : 6 * 60,
+    closesAt: isWeekend ? 20 * 60 : 22 * 60,
+  };
+}
+
+function getNewYorkTimeParts(value: Date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(value);
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  return {
+    weekday: weekdays.indexOf(byType.weekday),
+    hour: Number(byType.hour),
+    minute: Number(byType.minute),
+  };
+}
+
+function formatMinutes(value: number) {
+  const hour = Math.floor(value / 60);
+  const minute = value % 60;
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour % 12 || 12;
+
+  if (minute === 0) {
+    return `${displayHour}:00 ${period}`;
+  }
+
+  return `${displayHour}:${String(minute).padStart(2, '0')} ${period}`;
 }
