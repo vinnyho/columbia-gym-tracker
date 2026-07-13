@@ -7,7 +7,6 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5001;
-const CURRENT_TIME = new Date('2026-07-13T19:15:00-04:00');
 const BLUE_GYM_ICS_URL =
   'https://calendar.google.com/calendar/ical/cuperec%40gmail.com/public/basic.ics';
 
@@ -163,12 +162,13 @@ type ScheduleBlock = {
 };
 
 app.get('/api/facility', async (_req, res) => {
-  const scheduleBlocks = await getScheduleBlocks();
+  const currentTime = new Date();
+  const scheduleBlocks = await getScheduleBlocks(currentTime);
 
   res.json({
     ...snapshot,
     scheduleBlocks,
-    spaceStatuses: buildSpaceStatuses(scheduleBlocks),
+    spaceStatuses: buildSpaceStatuses(scheduleBlocks, currentTime),
   });
 });
 
@@ -260,7 +260,7 @@ function cleanAuthorName(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : 'Anonymous';
 }
 
-async function getScheduleBlocks() {
+async function getScheduleBlocks(currentTime: Date) {
   const fallbackBlocks = snapshot.scheduleBlocks;
 
   try {
@@ -271,7 +271,7 @@ async function getScheduleBlocks() {
     }
 
     const ics = await response.text();
-    const blueGymBlocks = parseBlueGymCalendar(ics);
+    const blueGymBlocks = parseBlueGymCalendar(ics, currentTime);
 
     if (blueGymBlocks.length === 0) {
       return fallbackBlocks;
@@ -286,7 +286,7 @@ async function getScheduleBlocks() {
   }
 }
 
-function buildSpaceStatuses(scheduleBlocks: ScheduleBlock[]) {
+function buildSpaceStatuses(scheduleBlocks: ScheduleBlock[], currentTime: Date) {
   return snapshot.spaces.map((space) => {
     const blocks = scheduleBlocks
       .filter((block) => block.spaceId === space.id)
@@ -295,11 +295,11 @@ function buildSpaceStatuses(scheduleBlocks: ScheduleBlock[]) {
           new Date(first.startsAt).getTime() - new Date(second.startsAt).getTime(),
       );
     const current = blocks.find(
-      (block) =>
-        new Date(block.startsAt) <= CURRENT_TIME &&
-        new Date(block.endsAt) > CURRENT_TIME,
+        (block) =>
+          new Date(block.startsAt) <= currentTime &&
+          new Date(block.endsAt) > currentTime,
     );
-    const next = blocks.find((block) => new Date(block.startsAt) > CURRENT_TIME);
+    const next = blocks.find((block) => new Date(block.startsAt) > currentTime);
 
     return {
       spaceId: space.id,
@@ -309,11 +309,11 @@ function buildSpaceStatuses(scheduleBlocks: ScheduleBlock[]) {
   });
 }
 
-function parseBlueGymCalendar(ics: string) {
-  const windowStart = new Date(CURRENT_TIME);
+function parseBlueGymCalendar(ics: string, currentTime: Date) {
+  const windowStart = new Date(currentTime);
   windowStart.setDate(windowStart.getDate() - 1);
 
-  const windowEnd = new Date(CURRENT_TIME);
+  const windowEnd = new Date(currentTime);
   windowEnd.setDate(windowEnd.getDate() + 14);
 
   return parseIcsEvents(ics)
