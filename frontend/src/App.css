@@ -104,6 +104,28 @@ dd {
   color: var(--ink-muted);
 }
 
+.message-card {
+  max-width: 560px;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.message-card h1,
+.message-card p {
+  margin: 0;
+}
+
+.message-card h1 {
+  margin-top: 6px;
+}
+
+.message-card p:not(.eyebrow) {
+  margin-top: 12px;
+  color: var(--ink-muted);
+}
+
 dl {
   margin: 18px 0 0;
   display: grid;
@@ -120,6 +142,34 @@ dt {
 dd {
   margin: 3px 0 0;
   font-weight: 700;
+}
+
+.schedule-list {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.schedule-list div,
+.schedule-list p {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.schedule-list strong,
+.schedule-list span {
+  display: block;
+}
+
+.schedule-list strong {
+  color: var(--ink);
+}
+
+.schedule-list span {
+  margin-top: 3px;
+  color: var(--ink-muted);
 }
 
 .list {
@@ -178,6 +228,11 @@ dd {
   padding: 10px 12px;
   border-radius: 8px;
   background: var(--soft);
+}
+
+.report-meta {
+  margin-top: 10px !important;
+  font-size: 13px;
 }
 
 @media (max-width: 820px) {

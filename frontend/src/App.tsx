@@ -1,79 +1,130 @@
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 
-const facility = {
-  name: 'Levien Gym',
-  status: 'Open',
-  hoursLabel: 'Open until 10:00 PM',
+type FacilitySnapshot = {
+  facility: {
+    name: string
+    status: string
+    hoursLabel: string
+  }
+  spaces: Space[]
+  scheduleBlocks: ScheduleBlock[]
+  equipment: Equipment[]
+  reports: Report[]
+  comments: Comment[]
 }
 
-const spaces = [
-  {
-    name: 'Blue Gym',
-    kind: 'Multi-purpose court',
-    currentUse: 'Open Rec Basketball',
-    nextUse: 'Volleyball tomorrow at 6:00 PM',
-  },
-  {
-    name: 'Squash Court 1',
-    kind: 'Squash court',
-    currentUse: 'Open Squash',
-    nextUse: 'No upcoming change listed',
-  },
-  {
-    name: 'Squash Court 2',
-    kind: 'Squash court',
-    currentUse: 'Reserved practice',
-    nextUse: 'Open play after 9:15 PM',
-  },
-]
+type Space = {
+  id: string
+  name: string
+  kind: string
+  location: string
+}
 
-const equipment = [
-  {
-    name: 'Treadmills',
-    location: 'Level 1 - Cardio deck',
-    status: 'Limited',
-    note: '5 of 12 working',
-  },
-  {
-    name: 'Squat Rack #4',
-    location: 'Level 1 - Strength area',
-    status: 'Broken',
-    note: 'Safety pin missing',
-  },
-  {
-    name: 'Rowing Machines',
-    location: 'Level 2 - Cardio corner',
-    status: 'Available',
-    note: '6 of 7 working',
-  },
-]
+type ScheduleBlock = {
+  id: string
+  spaceId: string
+  activity: string
+  startsAt: string
+  endsAt: string
+}
 
-const reports = [
-  {
-    target: 'Squat Rack #4',
-    issue: 'Broken',
-    body: 'The right safety pin is missing.',
-    comments: ['Confirmed, still missing as of 7:10 PM.'],
-  },
-  {
-    target: 'Blue Gym',
-    issue: 'Schedule mismatch',
-    body: 'Court is set up for volleyball, not basketball.',
-    comments: ['Looks like volleyball ends at 8 PM.'],
-  },
-]
+type Equipment = {
+  id: string
+  name: string
+  floor: number
+  zone: string
+  category: string
+  status: string
+  summary: string
+}
+
+type Report = {
+  id: string
+  targetType: 'equipment' | 'space'
+  targetId: string
+  issueType: string
+  body: string
+  createdAt: string
+}
+
+type Comment = {
+  id: string
+  reportId: string
+  body: string
+  createdAt: string
+}
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5001'
 
 function App() {
+  const [snapshot, setSnapshot] = useState<FacilitySnapshot | null>(null)
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    let ignore = false
+
+    async function loadFacility() {
+      try {
+        setIsLoading(true)
+        setError('')
+        const response = await fetch(`${API_BASE_URL}/api/facility`)
+
+        if (!response.ok) {
+          throw new Error(`Request failed with ${response.status}`)
+        }
+
+        const data = (await response.json()) as FacilitySnapshot
+
+        if (!ignore) {
+          setSnapshot(data)
+        }
+      } catch {
+        if (!ignore) {
+          setError('Could not load the facility API. Start the backend on port 5000.')
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadFacility()
+
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  const targetNames = useMemo(() => {
+    if (!snapshot) return new Map<string, string>()
+
+    return new Map([
+      ...snapshot.equipment.map((item) => [item.id, item.name] as const),
+      ...snapshot.spaces.map((space) => [space.id, space.name] as const),
+    ])
+  }, [snapshot])
+
+  if (isLoading) {
+    return <MessageCard title="Loading facility" body="Reading the backend snapshot..." />
+  }
+
+  if (error || !snapshot) {
+    return <MessageCard title="API unavailable" body={error} />
+  }
+
   return (
     <main className="page">
       <header className="page-header">
         <div>
           <p className="eyebrow">Gym Facility Tracker</p>
-          <h1>{facility.name}</h1>
+          <h1>{snapshot.facility.name}</h1>
         </div>
         <div className="facility-state">
-          <strong>{facility.status}</strong>
-          <span>{facility.hoursLabel}</span>
+          <strong>{titleCase(snapshot.facility.status)}</strong>
+          <span>{snapshot.facility.hoursLabel}</span>
         </div>
       </header>
 
@@ -83,22 +134,30 @@ function App() {
           <h2>Courts and spaces</h2>
         </div>
         <div className="grid">
-          {spaces.map((space) => (
-            <article className="card" key={space.name}>
-              <p className="eyebrow">{space.kind}</p>
-              <h3>{space.name}</h3>
-              <dl>
-                <div>
-                  <dt>Now</dt>
-                  <dd>{space.currentUse}</dd>
+          {snapshot.spaces.map((space) => {
+            const blocks = snapshot.scheduleBlocks.filter(
+              (block) => block.spaceId === space.id,
+            )
+
+            return (
+              <article className="card" key={space.id}>
+                <p className="eyebrow">{humanize(space.kind)}</p>
+                <h3>{space.name}</h3>
+                <p>{space.location}</p>
+                <div className="schedule-list">
+                  {blocks.length === 0 && <p>No schedule blocks yet.</p>}
+                  {blocks.map((block) => (
+                    <div key={block.id}>
+                      <strong>{block.activity}</strong>
+                      <span>
+                        {formatTime(block.startsAt)} - {formatTime(block.endsAt)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <dt>Next</dt>
-                  <dd>{space.nextUse}</dd>
-                </div>
-              </dl>
-            </article>
-          ))}
+              </article>
+            )
+          })}
         </div>
       </section>
 
@@ -108,16 +167,18 @@ function App() {
           <h2>Equipment</h2>
         </div>
         <div className="list">
-          {equipment.map((item) => (
-            <article className="row" key={item.name}>
+          {snapshot.equipment.map((item) => (
+            <article className="row" key={item.id}>
               <div>
                 <h3>{item.name}</h3>
-                <p>{item.location}</p>
+                <p>
+                  Level {item.floor} - {item.zone}
+                </p>
               </div>
-              <span className={`status ${item.status.toLowerCase()}`}>
-                {item.status}
+              <span className={`status ${item.status}`}>
+                {titleCase(item.status)}
               </span>
-              <p>{item.note}</p>
+              <p>{item.summary}</p>
             </article>
           ))}
         </div>
@@ -129,22 +190,68 @@ function App() {
           <h2>Reports and comments</h2>
         </div>
         <div className="grid">
-          {reports.map((report) => (
-            <article className="card" key={`${report.target}-${report.issue}`}>
-              <p className="eyebrow">{report.issue}</p>
-              <h3>{report.target}</h3>
-              <p>{report.body}</p>
-              <div className="comments">
-                {report.comments.map((comment) => (
-                  <p key={comment}>{comment}</p>
-                ))}
-              </div>
-            </article>
-          ))}
+          {snapshot.reports.map((report) => {
+            const comments = snapshot.comments.filter(
+              (comment) => comment.reportId === report.id,
+            )
+
+            return (
+              <article className="card" key={report.id}>
+                <p className="eyebrow">{humanize(report.issueType)}</p>
+                <h3>{targetNames.get(report.targetId) ?? report.targetId}</h3>
+                <p>{report.body}</p>
+                <p className="report-meta">{formatDateTime(report.createdAt)}</p>
+                <div className="comments">
+                  {comments.map((comment) => (
+                    <p key={comment.id}>{comment.body}</p>
+                  ))}
+                </div>
+              </article>
+            )
+          })}
         </div>
       </section>
     </main>
   )
+}
+
+function MessageCard({ title, body }: { title: string; body: string }) {
+  return (
+    <main className="page">
+      <div className="message-card">
+        <p className="eyebrow">Gym Facility Tracker</p>
+        <h1>{title}</h1>
+        <p>{body}</p>
+      </div>
+    </main>
+  )
+}
+
+function humanize(value: string) {
+  return value.replaceAll('_', ' ')
+}
+
+function titleCase(value: string) {
+  return value
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
+function formatTime(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value))
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value))
 }
 
 export default App
