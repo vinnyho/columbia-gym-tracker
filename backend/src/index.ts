@@ -381,12 +381,20 @@ const snapshot = {
   votes: [],
 };
 
-app.get('/health', (_req, res) => {
+function sendHealth(res: express.Response) {
   res.json({
     ok: true,
     databaseConfigured: Boolean(databasePool),
     authConfigured: Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY),
   });
+}
+
+app.get('/health', (_req, res) => {
+  sendHealth(res);
+});
+
+app.get('/api/health', (_req, res) => {
+  sendHealth(res);
 });
 
 type ScheduleBlock = {
