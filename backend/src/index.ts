@@ -176,6 +176,19 @@ app.post('/api/reports', (req, res) => {
   };
 
   snapshot.reports.unshift(report);
+
+  if (
+    targetType === 'equipment' &&
+    (issueType === 'broken' || issueType === 'missing_parts')
+  ) {
+    const equipment = snapshot.equipment.find((item) => item.id === targetId);
+
+    if (equipment) {
+      equipment.status = 'broken';
+      equipment.summary = report.body;
+    }
+  }
+
   res.status(201).json(report);
 });
 
