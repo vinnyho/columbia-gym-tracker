@@ -45,8 +45,11 @@ CREATE TABLE IF NOT EXISTS reports (
   issue_type TEXT NOT NULL,
   author_name TEXT NOT NULL,
   body TEXT NOT NULL,
+  photo_url TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS photo_url TEXT;
 
 CREATE TABLE IF NOT EXISTS comments (
   id TEXT PRIMARY KEY,
@@ -88,3 +91,48 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.hook_require_columbia_email TO supabase_auth_admin;
 REVOKE EXECUTE ON FUNCTION public.hook_require_columbia_email FROM authenticated, anon, public;
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'report-photos',
+  'report-photos',
+  true,
+  5242880,
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/heic']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND policyname = 'report_photos_public_read'
+  ) THEN
+    CREATE POLICY report_photos_public_read
+    ON storage.objects
+    FOR SELECT
+    TO public
+    USING (bucket_id = 'report-photos');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND policyname = 'report_photos_authenticated_upload'
+  ) THEN
+    CREATE POLICY report_photos_authenticated_upload
+    ON storage.objects
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (bucket_id = 'report-photos');
+  END IF;
+END;
+$$;

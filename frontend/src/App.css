@@ -612,6 +612,20 @@ dd {
   font-size: 13px;
 }
 
+.report-photo {
+  margin-top: 12px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: block;
+}
+
+.report-photo img {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  display: block;
+}
+
 .vote-actions {
   margin-top: 14px;
   display: flex;

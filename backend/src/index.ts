@@ -395,6 +395,7 @@ type Report = {
   issueType: string;
   authorName: string;
   body: string;
+  photoUrl?: string;
   createdAt: string;
   confirmCount?: number;
   disputeCount?: number;
@@ -432,6 +433,7 @@ type ReportRow = {
   issue_type: string;
   author_name: string;
   body: string;
+  photo_url: string | null;
   created_at: Date | string;
 };
 
@@ -516,6 +518,8 @@ app.post('/api/reports', async (req, res) => {
   }
 
   const { targetType, targetId, issueType, body } = req.body;
+  const photoUrl =
+    typeof req.body.photoUrl === 'string' ? req.body.photoUrl.trim() : '';
   const targetList = targetType === 'space' ? snapshot.spaces : snapshot.equipment;
   const targetExists = targetList.some((target) => target.id === targetId);
 
@@ -526,6 +530,7 @@ app.post('/api/reports', async (req, res) => {
     !isValidIssueType(targetType, issueType) ||
     typeof body !== 'string' ||
     body.trim().length === 0 ||
+    (photoUrl && !isValidPhotoUrl(photoUrl)) ||
     !targetExists
   ) {
     res.status(400).json({ error: 'Invalid report' });
@@ -539,6 +544,7 @@ app.post('/api/reports', async (req, res) => {
     issueType,
     authorName: user.email,
     body: body.trim(),
+    ...(photoUrl ? { photoUrl } : {}),
     createdAt: new Date().toISOString(),
   };
 
@@ -755,6 +761,15 @@ function isValidIssueType(targetType: unknown, issueType: string) {
   return false;
 }
 
+function isValidPhotoUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && value.length <= 1000;
+  } catch {
+    return false;
+  }
+}
+
 function notifyFacilityUpdate(update: Omit<RealtimeUpdate, 'createdAt'>) {
   Promise.resolve(
     publishRealtimeUpdate({
@@ -779,7 +794,7 @@ async function getReportsSnapshot(viewerEmail?: string) {
 
   const [reportResult, commentResult, voteResult] = await Promise.all([
     databasePool.query<ReportRow>(
-      `SELECT id, target_type, target_id, issue_type, author_name, body, created_at
+      `SELECT id, target_type, target_id, issue_type, author_name, body, photo_url, created_at
        FROM reports
        ORDER BY created_at DESC`,
     ),
@@ -808,9 +823,9 @@ async function saveReport(report: Report) {
 
   await databasePool.query(
     `INSERT INTO reports (
-      id, target_type, target_id, issue_type, author_name, body, created_at
+      id, target_type, target_id, issue_type, author_name, body, photo_url, created_at
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       report.id,
       report.targetType,
@@ -818,6 +833,7 @@ async function saveReport(report: Report) {
       report.issueType,
       report.authorName,
       report.body,
+      report.photoUrl ?? null,
       report.createdAt,
     ],
   );
@@ -857,7 +873,7 @@ async function findReport(id: string) {
   }
 
   const result = await databasePool.query<ReportRow>(
-    `SELECT id, target_type, target_id, issue_type, author_name, body, created_at
+    `SELECT id, target_type, target_id, issue_type, author_name, body, photo_url, created_at
      FROM reports
      WHERE id = $1`,
     [id],
@@ -959,6 +975,7 @@ function mapReportRow(row: ReportRow): Report {
     issueType: row.issue_type,
     authorName: row.author_name,
     body: row.body,
+    ...(row.photo_url ? { photoUrl: row.photo_url } : {}),
     createdAt: formatDatabaseTimestamp(row.created_at),
   };
 }

@@ -65,6 +65,7 @@ type Report = {
   issueType: string
   authorName: string
   body: string
+  photoUrl?: string
   createdAt: string
   confirmCount?: number
   disputeCount?: number
@@ -134,6 +135,9 @@ function App() {
   const [targetValue, setTargetValue] = useState('')
   const [issueType, setIssueType] = useState('broken')
   const [reportBody, setReportBody] = useState('')
+  const [reportPhoto, setReportPhoto] = useState<File | null>(null)
+  const [photoInputKey, setPhotoInputKey] = useState(0)
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   const [commentBodies, setCommentBodies] = useState<Record<string, string>>({})
   const [formMessage, setFormMessage] = useState('')
   const authHeaders = useMemo(
@@ -297,6 +301,41 @@ function App() {
 
     try {
       setFormMessage('')
+      let photoUrl = ''
+
+      if (reportPhoto) {
+        if (!supabase) {
+          setFormMessage('Photo uploads need Supabase configured.')
+          return
+        }
+
+        if (!reportPhoto.type.startsWith('image/')) {
+          setFormMessage('Choose an image file for the photo.')
+          return
+        }
+
+        if (reportPhoto.size > 5 * 1024 * 1024) {
+          setFormMessage('Choose a photo under 5 MB.')
+          return
+        }
+
+        setIsUploadingPhoto(true)
+        const photoPath = `${session.user.id}/${Date.now()}-${sanitizeFileName(reportPhoto.name)}`
+        const { error: uploadError } = await supabase.storage
+          .from('report-photos')
+          .upload(photoPath, reportPhoto, {
+            contentType: reportPhoto.type,
+            upsert: false,
+          })
+
+        if (uploadError) {
+          throw uploadError
+        }
+
+        const { data } = supabase.storage.from('report-photos').getPublicUrl(photoPath)
+        photoUrl = data.publicUrl
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/reports`, {
         method: 'POST',
         headers: {
@@ -308,6 +347,7 @@ function App() {
           targetId,
           issueType,
           body: reportBody,
+          photoUrl: photoUrl || undefined,
         }),
       })
 
@@ -318,10 +358,14 @@ function App() {
       setTargetValue('')
       setIssueType('broken')
       setReportBody('')
+      setReportPhoto(null)
+      setPhotoInputKey((current) => current + 1)
       setFormMessage('Report added.')
       await loadFacility()
     } catch {
       setFormMessage('Could not add report.')
+    } finally {
+      setIsUploadingPhoto(false)
     }
   }
 
@@ -732,8 +776,17 @@ function App() {
                 value={reportBody}
               />
             </label>
-            <button disabled={!signedInEmail} type="submit">
-              Add report
+            <label className="wide-field">
+              Photo
+              <input
+                accept="image/png,image/jpeg,image/webp,image/heic"
+                key={photoInputKey}
+                onChange={(event) => setReportPhoto(event.target.files?.[0] ?? null)}
+                type="file"
+              />
+            </label>
+            <button disabled={!signedInEmail || isUploadingPhoto} type="submit">
+              {isUploadingPhoto ? 'Uploading...' : 'Add report'}
             </button>
             {formMessage && <p className="form-message">{formMessage}</p>}
           </form>
@@ -804,6 +857,16 @@ function App() {
                   <p className="eyebrow">{humanize(report.issueType)}</p>
                   <h3>{targetNames.get(report.targetId) ?? report.targetId}</h3>
                   <p>{report.body}</p>
+                  {report.photoUrl && (
+                    <a
+                      className="report-photo"
+                      href={report.photoUrl}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      <img alt="Report attachment" src={report.photoUrl} />
+                    </a>
+                  )}
                   <p className="report-meta">
                     {report.authorName} · {formatDateTime(report.createdAt)}
                     {typeof report.weightedScore === 'number' &&
@@ -956,6 +1019,12 @@ function isWithinHours(value: string, hours: number) {
   const timestamp = new Date(value).getTime()
 
   return Date.now() - timestamp <= hours * 60 * 60 * 1000
+}
+
+function sanitizeFileName(value: string) {
+  const cleaned = value.toLowerCase().replace(/[^a-z0-9.]+/g, '-')
+
+  return cleaned.replace(/^-+|-+$/g, '') || 'report-photo'
 }
 
 function formatTime(value: string) {
