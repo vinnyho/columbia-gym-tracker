@@ -236,6 +236,15 @@ app.post('/api/reports', (req, res) => {
     }
   }
 
+  if (targetType === 'equipment' && issueType === 'fixed') {
+    const equipment = snapshot.equipment.find((item) => item.id === targetId);
+
+    if (equipment) {
+      equipment.status = 'available';
+      equipment.summary = report.body;
+    }
+  }
+
   res.status(201).json(report);
 });
 

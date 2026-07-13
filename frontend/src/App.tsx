@@ -382,6 +382,7 @@ function App() {
                 value={issueType}
               >
                 <option value="broken">Broken</option>
+                <option value="fixed">Fixed / working again</option>
                 <option value="cleanliness">Cleanliness</option>
                 <option value="missing_parts">Missing parts</option>
                 <option value="schedule_mismatch">Schedule mismatch</option>
