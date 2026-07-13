@@ -1,121 +1,149 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
 import './App.css'
 
+const facility = {
+  name: 'Levien Gym',
+  status: 'Open',
+  hoursLabel: 'Open until 10:00 PM',
+}
+
+const spaces = [
+  {
+    name: 'Blue Gym',
+    kind: 'Multi-purpose court',
+    currentUse: 'Open Rec Basketball',
+    nextUse: 'Volleyball tomorrow at 6:00 PM',
+  },
+  {
+    name: 'Squash Court 1',
+    kind: 'Squash court',
+    currentUse: 'Open Squash',
+    nextUse: 'No upcoming change listed',
+  },
+  {
+    name: 'Squash Court 2',
+    kind: 'Squash court',
+    currentUse: 'Reserved practice',
+    nextUse: 'Open play after 9:15 PM',
+  },
+]
+
+const equipment = [
+  {
+    name: 'Treadmills',
+    location: 'Level 1 - Cardio deck',
+    status: 'Limited',
+    note: '5 of 12 working',
+  },
+  {
+    name: 'Squat Rack #4',
+    location: 'Level 1 - Strength area',
+    status: 'Broken',
+    note: 'Safety pin missing',
+  },
+  {
+    name: 'Rowing Machines',
+    location: 'Level 2 - Cardio corner',
+    status: 'Available',
+    note: '6 of 7 working',
+  },
+]
+
+const reports = [
+  {
+    target: 'Squat Rack #4',
+    issue: 'Broken',
+    body: 'The right safety pin is missing.',
+    comments: ['Confirmed, still missing as of 7:10 PM.'],
+  },
+  {
+    target: 'Blue Gym',
+    issue: 'Schedule mismatch',
+    body: 'Court is set up for volleyball, not basketball.',
+    comments: ['Looks like volleyball ends at 8 PM.'],
+  },
+]
+
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
+    <main className="page">
+      <header className="page-header">
         <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
+          <p className="eyebrow">Gym Facility Tracker</p>
+          <h1>{facility.name}</h1>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+        <div className="facility-state">
+          <strong>{facility.status}</strong>
+          <span>{facility.hoursLabel}</span>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
+      </header>
+
+      <section className="section">
+        <div className="section-heading">
+          <p className="eyebrow">Spaces change by time</p>
+          <h2>Courts and spaces</h2>
+        </div>
+        <div className="grid">
+          {spaces.map((space) => (
+            <article className="card" key={space.name}>
+              <p className="eyebrow">{space.kind}</p>
+              <h3>{space.name}</h3>
+              <dl>
+                <div>
+                  <dt>Now</dt>
+                  <dd>{space.currentUse}</dd>
+                </div>
+                <div>
+                  <dt>Next</dt>
+                  <dd>{space.nextUse}</dd>
+                </div>
+              </dl>
+            </article>
+          ))}
         </div>
       </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <section className="section">
+        <div className="section-heading">
+          <p className="eyebrow">Equipment has status</p>
+          <h2>Equipment</h2>
+        </div>
+        <div className="list">
+          {equipment.map((item) => (
+            <article className="row" key={item.name}>
+              <div>
+                <h3>{item.name}</h3>
+                <p>{item.location}</p>
+              </div>
+              <span className={`status ${item.status.toLowerCase()}`}>
+                {item.status}
+              </span>
+              <p>{item.note}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="section-heading">
+          <p className="eyebrow">Reports need discussion</p>
+          <h2>Reports and comments</h2>
+        </div>
+        <div className="grid">
+          {reports.map((report) => (
+            <article className="card" key={`${report.target}-${report.issue}`}>
+              <p className="eyebrow">{report.issue}</p>
+              <h3>{report.target}</h3>
+              <p>{report.body}</p>
+              <div className="comments">
+                {report.comments.map((comment) => (
+                  <p key={comment}>{comment}</p>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </main>
   )
 }
 

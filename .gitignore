@@ -11,4 +11,4 @@ yarn-debug.log*
 .idea
 .next
 out/
-writeup.md
+docs
