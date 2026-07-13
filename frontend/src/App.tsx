@@ -86,6 +86,8 @@ function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('all')
   const [authorName, setAuthorName] = useState('')
+  const [floorFilter, setFloorFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [targetValue, setTargetValue] = useState('')
   const [issueType, setIssueType] = useState('broken')
   const [reportBody, setReportBody] = useState('')
@@ -162,6 +164,16 @@ function App() {
   const ownCommentCount = snapshot
     ? snapshot.comments.filter((comment) => comment.authorName === displayName).length
     : 0
+  const visibleEquipment = snapshot
+    ? snapshot.equipment.filter(
+        (item) =>
+          (floorFilter === 'all' || String(item.floor) === floorFilter) &&
+          (statusFilter === 'all' || item.status === statusFilter),
+      )
+    : []
+  const floors = snapshot
+    ? Array.from(new Set(snapshot.equipment.map((item) => item.floor))).sort()
+    : []
 
   async function submitReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -329,8 +341,36 @@ function App() {
               <p className="eyebrow">Equipment has status</p>
               <h2>Equipment</h2>
             </div>
+            <div className="filters" aria-label="Equipment filters">
+              <label>
+                Floor
+                <select
+                  onChange={(event) => setFloorFilter(event.target.value)}
+                  value={floorFilter}
+                >
+                  <option value="all">All floors</option>
+                  {floors.map((floor) => (
+                    <option key={floor} value={floor}>
+                      Floor {floor}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Status
+                <select
+                  onChange={(event) => setStatusFilter(event.target.value)}
+                  value={statusFilter}
+                >
+                  <option value="all">All statuses</option>
+                  <option value="available">Available</option>
+                  <option value="limited">Limited</option>
+                  <option value="broken">Broken</option>
+                </select>
+              </label>
+            </div>
             <div className="list">
-              {snapshot.equipment.map((item) => (
+              {visibleEquipment.map((item) => (
                 <article className="row" key={item.id}>
                   <div>
                     <h3>{item.name}</h3>
@@ -344,6 +384,9 @@ function App() {
                   <p>{item.summary}</p>
                 </article>
               ))}
+              {visibleEquipment.length === 0 && (
+                <div className="empty-state">No equipment matches those filters.</div>
+              )}
             </div>
           </section>
         </>

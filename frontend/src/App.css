@@ -292,6 +292,32 @@ dd {
   overflow: hidden;
 }
 
+.filters {
+  margin-bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.filters label {
+  min-width: 170px;
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 800;
+  display: grid;
+  gap: 7px;
+}
+
+.filters select {
+  min-height: 40px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+  padding: 0 10px;
+}
+
 .form-card {
   padding: 18px;
   border: 1px solid var(--line);
@@ -369,6 +395,12 @@ dd {
 
 .row + .row {
   border-top: 1px solid var(--line);
+}
+
+.empty-state {
+  padding: 18px;
+  color: var(--ink-muted);
+  font-weight: 800;
 }
 
 .schedule-row {
