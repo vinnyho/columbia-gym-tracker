@@ -68,6 +68,7 @@ type Report = {
   confirmCount?: number
   disputeCount?: number
   weightedScore?: number
+  viewerVote?: 'confirm' | 'dispute'
 }
 
 type Comment = {
@@ -131,6 +132,14 @@ function App() {
   const [reportBody, setReportBody] = useState('')
   const [commentBodies, setCommentBodies] = useState<Record<string, string>>({})
   const [formMessage, setFormMessage] = useState('')
+  const hasSnapshot = Boolean(snapshot)
+  const authHeaders = useMemo(
+    () =>
+      session?.access_token
+        ? { Authorization: `Bearer ${session.access_token}` }
+        : undefined,
+    [session?.access_token],
+  )
 
   async function loadFacility(showLoading = true) {
     try {
@@ -140,7 +149,9 @@ function App() {
         setIsRefreshing(true)
       }
       setError('')
-      const response = await fetch(`${API_BASE_URL}/api/facility`)
+      const response = await fetch(`${API_BASE_URL}/api/facility`, {
+        headers: authHeaders,
+      })
 
       if (!response.ok) {
         throw new Error(`Request failed with ${response.status}`)
@@ -194,6 +205,46 @@ function App() {
       ignore = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!hasSnapshot) return
+
+    let ignore = false
+
+    async function reloadWithSession() {
+      try {
+        setIsRefreshing(true)
+        setError('')
+        const response = await fetch(`${API_BASE_URL}/api/facility`, {
+          headers: authHeaders,
+        })
+
+        if (!response.ok) {
+          throw new Error(`Request failed with ${response.status}`)
+        }
+
+        const data = (await response.json()) as FacilitySnapshot
+
+        if (!ignore) {
+          setSnapshot(data)
+        }
+      } catch {
+        if (!ignore) {
+          setError('Could not load the facility API. Start the backend on port 5001.')
+        }
+      } finally {
+        if (!ignore) {
+          setIsRefreshing(false)
+        }
+      }
+    }
+
+    void reloadWithSession()
+
+    return () => {
+      ignore = true
+    }
+  }, [authHeaders, hasSnapshot])
 
   useEffect(() => {
     if (!supabase) return
@@ -808,6 +859,7 @@ function App() {
                   </p>
                   <div className="vote-actions" aria-label="Report votes">
                     <button
+                      className={report.viewerVote === 'confirm' ? 'active' : ''}
                       disabled={!signedInEmail}
                       onClick={() => void submitVote(report.id, 'confirm')}
                       type="button"
@@ -815,6 +867,7 @@ function App() {
                       Confirm {report.confirmCount ?? 0}
                     </button>
                     <button
+                      className={report.viewerVote === 'dispute' ? 'active' : ''}
                       disabled={!signedInEmail}
                       onClick={() => void submitVote(report.id, 'dispute')}
                       type="button"

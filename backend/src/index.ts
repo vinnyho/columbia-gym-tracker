@@ -397,6 +397,7 @@ type Report = {
   confirmCount?: number;
   disputeCount?: number;
   weightedScore?: number;
+  viewerVote?: 'confirm' | 'dispute';
 };
 
 type Comment = {
@@ -443,14 +444,15 @@ let blueGymCalendarCache:
   | { expiresAt: number; blocks: ScheduleBlock[] }
   | null = null;
 
-app.get('/api/facility', async (_req, res) => {
+app.get('/api/facility', async (req, res) => {
   const currentTime = new Date();
   const scheduleBlocks = await getScheduleBlocks(currentTime);
+  const viewer = await getRequestUser(req);
 
   let reportData: { reports: Report[]; comments: Comment[]; votes: ReportVote[] };
 
   try {
-    reportData = await getReportsSnapshot();
+    reportData = await getReportsSnapshot(viewer?.email);
   } catch (error) {
     console.error('Could not load reports', error);
     res.status(500).json({ error: 'Could not load facility reports' });
@@ -485,9 +487,10 @@ app.get('/api/equipment', async (_req, res) => {
   }
 });
 
-app.get('/api/reports', async (_req, res) => {
+app.get('/api/reports', async (req, res) => {
   try {
-    res.json(await getReportsSnapshot());
+    const viewer = await getRequestUser(req);
+    res.json(await getReportsSnapshot(viewer?.email));
   } catch (error) {
     console.error('Could not load reports', error);
     res.status(500).json({ error: 'Could not load reports' });
@@ -628,7 +631,15 @@ app.post('/api/reports/:id/votes', async (req, res) => {
     return;
   }
 
-  const report = await findReport(req.params.id);
+  let report: Report | null;
+
+  try {
+    report = await findReport(req.params.id);
+  } catch (error) {
+    console.error('Could not load report', error);
+    res.status(500).json({ error: 'Could not load report' });
+    return;
+  }
 
   if (!report) {
     res.status(404).json({ error: 'Report not found' });
@@ -715,12 +726,12 @@ function isValidIssueType(targetType: unknown, issueType: string) {
   return false;
 }
 
-async function getReportsSnapshot() {
+async function getReportsSnapshot(viewerEmail?: string) {
   if (!databasePool) {
     const votes = snapshot.votes as ReportVote[];
 
     return {
-      reports: addVoteCounts(snapshot.reports as Report[], votes),
+      reports: addVoteCounts(snapshot.reports as Report[], votes, viewerEmail),
       comments: snapshot.comments as Comment[],
       votes,
     };
@@ -746,7 +757,7 @@ async function getReportsSnapshot() {
   const votes = voteResult.rows.map(mapReportVoteRow);
 
   return {
-    reports: addVoteCounts(reportResult.rows.map(mapReportRow), votes),
+    reports: addVoteCounts(reportResult.rows.map(mapReportRow), votes, viewerEmail),
     comments: commentResult.rows.map(mapCommentRow),
     votes,
   };
@@ -862,17 +873,21 @@ function buildEquipmentStatus(reports: Report[]) {
   return equipment;
 }
 
-function addVoteCounts(reports: Report[], votes: ReportVote[]) {
+function addVoteCounts(reports: Report[], votes: ReportVote[], viewerEmail?: string) {
   return reports.map((report) => {
     const reportVotes = votes.filter((vote) => vote.reportId === report.id);
     const confirmCount = reportVotes.filter((vote) => vote.value === 'confirm').length;
     const disputeCount = reportVotes.filter((vote) => vote.value === 'dispute').length;
+    const viewerVote = viewerEmail
+      ? reportVotes.find((vote) => vote.authorName === viewerEmail)?.value
+      : undefined;
 
     return {
       ...report,
       confirmCount,
       disputeCount,
       weightedScore: getReportScore(report, confirmCount, disputeCount),
+      viewerVote,
     };
   });
 }

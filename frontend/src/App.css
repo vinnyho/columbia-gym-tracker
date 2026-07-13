@@ -615,6 +615,11 @@ dd {
   opacity: 0.65;
 }
 
+.vote-actions button.active {
+  background: var(--teal);
+  color: white;
+}
+
 .comment-form {
   margin-top: 14px;
   display: grid;
