@@ -288,15 +288,6 @@ function App() {
         ))}
       </nav>
 
-      <label className="identity-card">
-        Posting as
-        <input
-          onChange={(event) => setAuthorName(event.target.value)}
-          placeholder="Anonymous"
-          value={authorName}
-        />
-      </label>
-
       {activeTab === 'all' && (
         <>
           <section className="section">
@@ -442,10 +433,18 @@ function App() {
             <p className="eyebrow">Create a report</p>
             <h2>Report an issue</h2>
             <p className="section-note">
-              Reports are temporary while this app is still using in-memory data.
+              Reports update equipment status and show up in the activity feed.
             </p>
           </div>
           <form className="form-card" onSubmit={submitReport}>
+            <label>
+              Your name
+              <input
+                onChange={(event) => setAuthorName(event.target.value)}
+                placeholder="Anonymous"
+                value={authorName}
+              />
+            </label>
             <label>
               Target
               <select
@@ -536,6 +535,9 @@ function App() {
             <h2>Reports and comments</h2>
           </div>
           <div className="grid">
+            {snapshot.reports.length === 0 && (
+              <div className="empty-state">No reports yet.</div>
+            )}
             {snapshot.reports.map((report) => {
               const comments = snapshot.comments.filter(
                 (comment) => comment.reportId === report.id,
@@ -592,10 +594,15 @@ function App() {
             </p>
           </div>
           <div className="profile-card">
-            <div>
+            <label className="profile-name-field">
               <p className="eyebrow">Posting as</p>
-              <h3>{displayName}</h3>
-            </div>
+              <input
+                onChange={(event) => setAuthorName(event.target.value)}
+                placeholder="Anonymous"
+                value={authorName}
+              />
+              <span>{displayName}</span>
+            </label>
             <div className="profile-stats">
               <div>
                 <strong>{ownReportCount}</strong>

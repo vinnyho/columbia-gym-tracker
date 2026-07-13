@@ -94,31 +94,6 @@
   color: white;
 }
 
-.identity-card {
-  max-width: 320px;
-  margin-top: 14px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--card);
-  color: var(--ink-muted);
-  font-size: 13px;
-  font-weight: 800;
-  display: grid;
-  gap: 7px;
-}
-
-.identity-card input {
-  min-height: 38px;
-  width: 100%;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  padding: 0 10px;
-  color: var(--ink);
-  font: inherit;
-  font-weight: 500;
-}
-
 .section {
   margin-top: 28px;
 }
@@ -207,9 +182,28 @@ dd {
   align-items: center;
 }
 
-.profile-card h3 {
-  margin: 6px 0 0;
-  font-size: 24px;
+.profile-name-field {
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 800;
+  display: grid;
+  gap: 8px;
+}
+
+.profile-name-field input {
+  min-height: 42px;
+  width: min(360px, 100%);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 500;
+}
+
+.profile-name-field span {
+  color: var(--ink);
+  font-size: 20px;
 }
 
 .profile-stats {
@@ -329,7 +323,7 @@ dd {
   border-radius: 10px;
   background: var(--card);
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   align-items: end;
 }
@@ -343,6 +337,7 @@ dd {
 }
 
 .form-card select,
+.form-card input,
 .form-card textarea,
 .comment-form input {
   width: 100%;
@@ -354,6 +349,7 @@ dd {
 }
 
 .form-card select,
+.form-card input,
 .comment-form input {
   min-height: 42px;
   padding: 0 12px;
@@ -406,6 +402,13 @@ dd {
   padding: 18px;
   color: var(--ink-muted);
   font-weight: 800;
+}
+
+.grid > .empty-state {
+  grid-column: 1 / -1;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
 }
 
 .schedule-row {
