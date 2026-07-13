@@ -161,6 +161,10 @@ type ScheduleBlock = {
   endsAt: string;
 };
 
+let blueGymCalendarCache:
+  | { expiresAt: number; blocks: ScheduleBlock[] }
+  | null = null;
+
 app.get('/api/facility', async (_req, res) => {
   const currentTime = new Date();
   const scheduleBlocks = await getScheduleBlocks(currentTime);
@@ -266,6 +270,14 @@ function cleanAuthorName(value: unknown) {
 
 async function getScheduleBlocks(currentTime: Date) {
   const fallbackBlocks = snapshot.scheduleBlocks;
+  const now = Date.now();
+
+  if (blueGymCalendarCache && blueGymCalendarCache.expiresAt > now) {
+    return [
+      ...blueGymCalendarCache.blocks,
+      ...fallbackBlocks.filter((block) => block.spaceId !== 'blue-gym'),
+    ];
+  }
 
   try {
     const response = await fetch(BLUE_GYM_ICS_URL);
@@ -280,6 +292,11 @@ async function getScheduleBlocks(currentTime: Date) {
     if (blueGymBlocks.length === 0) {
       return fallbackBlocks;
     }
+
+    blueGymCalendarCache = {
+      blocks: blueGymBlocks,
+      expiresAt: now + 15 * 60 * 1000,
+    };
 
     return [
       ...blueGymBlocks,
