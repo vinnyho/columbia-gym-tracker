@@ -351,7 +351,7 @@ function App() {
                   <option value="all">All floors</option>
                   {floors.map((floor) => (
                     <option key={floor} value={floor}>
-                      Floor {floor}
+                      {floorName(floor)}
                     </option>
                   ))}
                 </select>
@@ -375,7 +375,7 @@ function App() {
                   <div>
                     <h3>{item.name}</h3>
                     <p>
-                      Level {item.floor} - {item.zone}
+                      {floorName(item.floor)} - {item.zone}
                     </p>
                   </div>
                   <span className={`status ${item.status}`}>
@@ -413,7 +413,7 @@ function App() {
                 <optgroup label="Equipment">
                   {snapshot.equipment.map((item) => (
                     <option key={item.id} value={`equipment:${item.id}`}>
-                      {item.name} - Level {item.floor}, {titleCase(item.status)}
+                      {item.name} - {floorName(item.floor)}, {titleCase(item.status)}
                     </option>
                   ))}
                 </optgroup>
@@ -590,6 +590,13 @@ function titleCase(value: string) {
     .split('_')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
+}
+
+function floorName(floor: number) {
+  if (floor === 1) return 'Bottom floor'
+  if (floor === 2) return 'Second floor'
+  if (floor === 3) return 'Top floor'
+  return `Floor ${floor}`
 }
 
 function formatTime(value: string) {
