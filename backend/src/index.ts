@@ -370,7 +370,11 @@ const snapshot = {
 };
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true });
+  res.json({
+    ok: true,
+    databaseConfigured: Boolean(databasePool),
+    authConfigured: Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY),
+  });
 });
 
 type ScheduleBlock = {
