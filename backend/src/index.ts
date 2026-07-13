@@ -102,8 +102,8 @@ const snapshot = {
       floor: 1,
       zone: 'Bottom floor free weights',
       category: 'Strength',
-      status: 'broken',
-      summary: 'Safety pin missing',
+      status: 'available',
+      summary: 'Working normally',
     },
     {
       id: 'second-hip-thrust',
@@ -184,7 +184,7 @@ const snapshot = {
       zone: 'Second floor free weights',
       category: 'Strength',
       status: 'available',
-      summary: 'About 4 benches',
+      summary: '4 benches',
     },
     {
       id: 'second-seated-calf-raise',
@@ -319,7 +319,7 @@ const snapshot = {
       zone: 'Top floor cardio',
       category: 'Cardio',
       status: 'available',
-      summary: 'About 6 treadmills',
+      summary: '6 treadmills',
     },
     {
       id: 'top-stairmasters',
@@ -333,15 +333,6 @@ const snapshot = {
   ],
   reports: [
     {
-      id: 'report-squat-rack-pin',
-      targetType: 'equipment',
-      targetId: 'bottom-squat-rack',
-      issueType: 'broken',
-      authorName: 'Alex',
-      body: 'The right safety pin is missing.',
-      createdAt: '2026-07-13T18:42:00-04:00',
-    },
-    {
       id: 'report-blue-gym-lines',
       targetType: 'space',
       targetId: 'blue-gym',
@@ -352,13 +343,6 @@ const snapshot = {
     },
   ],
   comments: [
-    {
-      id: 'comment-squat-rack-confirm',
-      reportId: 'report-squat-rack-pin',
-      authorName: 'Jordan',
-      body: 'Confirmed, still missing as of 7:10 PM.',
-      createdAt: '2026-07-13T19:10:00-04:00',
-    },
     {
       id: 'comment-blue-gym-context',
       reportId: 'report-blue-gym-lines',
