@@ -550,7 +550,7 @@ function App() {
             {isRefreshing ? 'Refreshing...' : 'Refresh'}
           </button>
           <span className={`realtime-state ${realtimeStatus}`}>
-            Live {realtimeStatus}
+            {realtimeStatus === 'offline' ? 'Manual refresh' : `Live ${realtimeStatus}`}
           </span>
         </div>
       </header>

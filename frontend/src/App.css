@@ -8,7 +8,10 @@
   padding: 28px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--card);
+  background:
+    linear-gradient(135deg, rgba(117, 178, 221, 0.18), rgba(255, 255, 255, 0.92)),
+    var(--card);
+  box-shadow: var(--shadow);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -28,6 +31,7 @@
 
 .page-header h1 {
   margin-top: 6px;
+  color: var(--columbia-dark);
   font-size: 36px;
   line-height: 1.05;
 }
@@ -35,9 +39,9 @@
 .facility-state {
   min-width: 190px;
   padding: 14px 16px;
-  border: 1px solid var(--line);
+  border: 1px solid rgba(117, 178, 221, 0.45);
   border-radius: 8px;
-  background: var(--soft);
+  background: rgba(255, 255, 255, 0.78);
 }
 
 .facility-state strong,
@@ -63,7 +67,7 @@
 .source-link {
   width: fit-content;
   margin-top: 8px;
-  color: var(--teal);
+  color: var(--columbia-dark);
   font-weight: 800;
 }
 
@@ -74,7 +78,7 @@
   border: 1px solid var(--line-strong);
   border-radius: 8px;
   background: white;
-  color: var(--teal);
+  color: var(--columbia-dark);
   font: inherit;
   font-weight: 800;
   padding: 0 12px;
@@ -104,8 +108,8 @@
 }
 
 .realtime-state.offline {
-  background: #ffe4e0;
-  color: #c5221f;
+  background: var(--blue-tint);
+  color: var(--columbia-dark);
 }
 
 .tabs {
@@ -113,7 +117,8 @@
   padding: 6px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--card);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 8px 22px rgba(31, 95, 145, 0.08);
   display: inline-flex;
   gap: 6px;
 }
@@ -131,7 +136,7 @@
 }
 
 .tabs button.active {
-  background: var(--teal);
+  background: var(--columbia-dark);
   color: white;
 }
 
@@ -158,7 +163,7 @@
 }
 
 .segmented-control button.active {
-  background: var(--teal);
+  background: var(--columbia-dark);
   color: white;
 }
 
@@ -189,7 +194,7 @@
 }
 
 .eyebrow {
-  color: var(--ink-light);
+  color: var(--columbia-dark);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -211,6 +216,7 @@
 
 .card {
   padding: 18px;
+  box-shadow: 0 10px 26px rgba(31, 95, 145, 0.08);
 }
 
 .card h3 {
@@ -230,6 +236,7 @@ dd {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--card);
+  box-shadow: var(--shadow);
 }
 
 .message-card h1,
@@ -251,6 +258,7 @@ dd {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--card);
+  box-shadow: 0 10px 26px rgba(31, 95, 145, 0.08);
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 18px;
@@ -299,7 +307,7 @@ dd {
   width: fit-content;
   border: 0;
   border-radius: 8px;
-  background: var(--teal);
+  background: var(--columbia-dark);
   color: white;
   font: inherit;
   font-weight: 800;
@@ -318,7 +326,7 @@ dd {
   border: 1px solid var(--line-strong);
   border-radius: 8px;
   background: white;
-  color: var(--teal);
+  color: var(--columbia-dark);
   font: inherit;
   font-weight: 800;
   padding: 0 12px;
@@ -334,7 +342,7 @@ dd {
   min-width: 92px;
   padding: 12px;
   border-radius: 8px;
-  background: var(--soft);
+  background: var(--blue-tint);
 }
 
 .profile-stats strong,
@@ -385,7 +393,7 @@ dd {
   margin: 0;
   padding: 10px 12px;
   border-radius: 8px;
-  background: var(--soft);
+  background: var(--blue-tint);
 }
 
 .schedule-list strong,
@@ -406,6 +414,7 @@ dd {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--card);
+  box-shadow: 0 10px 26px rgba(31, 95, 145, 0.08);
   overflow: hidden;
 }
 
@@ -445,6 +454,7 @@ dd {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--card);
+  box-shadow: 0 10px 26px rgba(31, 95, 145, 0.08);
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
@@ -499,7 +509,7 @@ dd {
   padding: 0 14px;
   border: 0;
   border-radius: 8px;
-  background: var(--teal);
+  background: var(--columbia-dark);
   color: white;
   font: inherit;
   font-weight: 800;
@@ -548,6 +558,7 @@ dd {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--card);
+  box-shadow: 0 10px 26px rgba(31, 95, 145, 0.08);
 }
 
 .schedule-row {
@@ -598,7 +609,7 @@ dd {
 .comments p {
   padding: 10px 12px;
   border-radius: 8px;
-  background: var(--soft);
+  background: var(--blue-tint);
 }
 
 .comments strong {
@@ -638,7 +649,7 @@ dd {
   border: 1px solid var(--line-strong);
   border-radius: 8px;
   background: white;
-  color: var(--teal);
+  color: var(--columbia-dark);
   font: inherit;
   font-size: 13px;
   font-weight: 800;
@@ -652,7 +663,7 @@ dd {
 }
 
 .vote-actions button.active {
-  background: var(--teal);
+  background: var(--columbia-dark);
   color: white;
 }
 
