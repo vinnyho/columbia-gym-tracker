@@ -735,6 +735,12 @@ function buildEquipmentStatus(reports: Report[]) {
     const item = equipment.find((candidate) => candidate.id === report.targetId);
     if (!item) continue;
 
+    Object.assign(item, {
+      lastReportAt: report.createdAt,
+      lastReportAuthor: report.authorName,
+      lastReportIssueType: report.issueType,
+    });
+
     if (report.issueType === 'broken' || report.issueType === 'missing_parts') {
       item.status = 'broken';
       item.summary = report.body;

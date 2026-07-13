@@ -51,6 +51,9 @@ type Equipment = {
   category: string
   status: string
   summary: string
+  lastReportAt?: string
+  lastReportAuthor?: string
+  lastReportIssueType?: string
 }
 
 type Report = {
@@ -387,10 +390,11 @@ function App() {
     targetType: 'equipment' | 'space',
     targetId: string,
     nextIssueType = 'broken',
+    nextBody = '',
   ) {
     setTargetValue(`${targetType}:${targetId}`)
     setIssueType(nextIssueType)
-    setReportBody('')
+    setReportBody(nextBody)
     setFormMessage('')
     setActiveTab('report')
   }
@@ -579,13 +583,28 @@ function App() {
                   <span className={`status ${item.status}`}>
                     {titleCase(item.status)}
                   </span>
-                  <p>{item.summary}</p>
+                  <div>
+                    <p>{item.summary}</p>
+                    {item.lastReportAt && item.lastReportIssueType && (
+                      <p className="row-meta">
+                        Last report: {titleCase(item.lastReportIssueType)} ·{' '}
+                        {formatDateTime(item.lastReportAt)}
+                      </p>
+                    )}
+                  </div>
                   <button
                     className="secondary-button"
-                    onClick={() => startReport('equipment', item.id)}
+                    onClick={() =>
+                      startReport(
+                        'equipment',
+                        item.id,
+                        item.status === 'broken' ? 'fixed' : 'broken',
+                        item.status === 'broken' ? 'Working again.' : '',
+                      )
+                    }
                     type="button"
                   >
-                    Report
+                    {item.status === 'broken' ? 'Mark fixed' : 'Report'}
                   </button>
                 </article>
               ))}
