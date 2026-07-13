@@ -149,6 +149,56 @@ app.get('/api/reports', (_req, res) => {
   });
 });
 
+app.post('/api/reports', (req, res) => {
+  const { targetType, targetId, issueType, body } = req.body;
+  const targetList = targetType === 'space' ? snapshot.spaces : snapshot.equipment;
+  const targetExists = targetList.some((target) => target.id === targetId);
+
+  if (
+    (targetType !== 'equipment' && targetType !== 'space') ||
+    typeof targetId !== 'string' ||
+    typeof issueType !== 'string' ||
+    typeof body !== 'string' ||
+    body.trim().length === 0 ||
+    !targetExists
+  ) {
+    res.status(400).json({ error: 'Invalid report' });
+    return;
+  }
+
+  const report = {
+    id: `report-${Date.now()}`,
+    targetType,
+    targetId,
+    issueType,
+    body: body.trim(),
+    createdAt: new Date().toISOString(),
+  };
+
+  snapshot.reports.unshift(report);
+  res.status(201).json(report);
+});
+
+app.post('/api/reports/:id/comments', (req, res) => {
+  const report = snapshot.reports.find((item) => item.id === req.params.id);
+  const { body } = req.body;
+
+  if (!report || typeof body !== 'string' || body.trim().length === 0) {
+    res.status(400).json({ error: 'Invalid comment' });
+    return;
+  }
+
+  const comment = {
+    id: `comment-${Date.now()}`,
+    reportId: report.id,
+    body: body.trim(),
+    createdAt: new Date().toISOString(),
+  };
+
+  snapshot.comments.push(comment);
+  res.status(201).json(comment);
+});
+
 app.listen(PORT, () => {
   console.log(`Gym tracker API listening on port ${PORT}`);
 });

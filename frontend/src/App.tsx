@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
 import './App.css'
 
 type FacilitySnapshot = {
@@ -61,11 +62,35 @@ function App() {
   const [snapshot, setSnapshot] = useState<FacilitySnapshot | null>(null)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [targetValue, setTargetValue] = useState('')
+  const [issueType, setIssueType] = useState('broken')
+  const [reportBody, setReportBody] = useState('')
+  const [commentBodies, setCommentBodies] = useState<Record<string, string>>({})
+  const [formMessage, setFormMessage] = useState('')
+
+  async function loadFacility() {
+    try {
+      setIsLoading(true)
+      setError('')
+      const response = await fetch(`${API_BASE_URL}/api/facility`)
+
+      if (!response.ok) {
+        throw new Error(`Request failed with ${response.status}`)
+      }
+
+      const data = (await response.json()) as FacilitySnapshot
+      setSnapshot(data)
+    } catch {
+      setError('Could not load the facility API. Start the backend on port 5001.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   useEffect(() => {
     let ignore = false
 
-    async function loadFacility() {
+    async function load() {
       try {
         setIsLoading(true)
         setError('')
@@ -82,7 +107,7 @@ function App() {
         }
       } catch {
         if (!ignore) {
-          setError('Could not load the facility API. Start the backend on port 5000.')
+          setError('Could not load the facility API. Start the backend on port 5001.')
         }
       } finally {
         if (!ignore) {
@@ -91,7 +116,7 @@ function App() {
       }
     }
 
-    loadFacility()
+    load()
 
     return () => {
       ignore = true
@@ -106,6 +131,74 @@ function App() {
       ...snapshot.spaces.map((space) => [space.id, space.name] as const),
     ])
   }, [snapshot])
+
+  const reportTargets = useMemo(() => {
+    if (!snapshot) return []
+
+    return [
+      ...snapshot.equipment.map((item) => ({
+        label: item.name,
+        value: `equipment:${item.id}`,
+      })),
+      ...snapshot.spaces.map((space) => ({
+        label: space.name,
+        value: `space:${space.id}`,
+      })),
+    ]
+  }, [snapshot])
+
+  async function submitReport(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const [targetType, targetId] = targetValue.split(':')
+
+    try {
+      setFormMessage('')
+      const response = await fetch(`${API_BASE_URL}/api/reports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetType,
+          targetId,
+          issueType,
+          body: reportBody,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Report failed')
+      }
+
+      setTargetValue('')
+      setIssueType('broken')
+      setReportBody('')
+      setFormMessage('Report added.')
+      await loadFacility()
+    } catch {
+      setFormMessage('Could not add report.')
+    }
+  }
+
+  async function submitComment(event: FormEvent<HTMLFormElement>, reportId: string) {
+    event.preventDefault()
+    const body = commentBodies[reportId] ?? ''
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/reports/${reportId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Comment failed')
+      }
+
+      setCommentBodies((current) => ({ ...current, [reportId]: '' }))
+      await loadFacility()
+    } catch {
+      setFormMessage('Could not add comment.')
+    }
+  }
 
   if (isLoading) {
     return <MessageCard title="Loading facility" body="Reading the backend snapshot..." />
@@ -186,6 +279,54 @@ function App() {
 
       <section className="section">
         <div className="section-heading">
+          <p className="eyebrow">Create a report</p>
+          <h2>Report an issue</h2>
+        </div>
+        <form className="form-card" onSubmit={submitReport}>
+          <label>
+            Target
+            <select
+              onChange={(event) => setTargetValue(event.target.value)}
+              required
+              value={targetValue}
+            >
+              <option value="">Select equipment or space</option>
+              {reportTargets.map((target) => (
+                <option key={target.value} value={target.value}>
+                  {target.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Issue
+            <select
+              onChange={(event) => setIssueType(event.target.value)}
+              value={issueType}
+            >
+              <option value="broken">Broken</option>
+              <option value="cleanliness">Cleanliness</option>
+              <option value="missing_parts">Missing parts</option>
+              <option value="schedule_mismatch">Schedule mismatch</option>
+            </select>
+          </label>
+          <label className="wide-field">
+            Details
+            <textarea
+              onChange={(event) => setReportBody(event.target.value)}
+              placeholder="What should other students know?"
+              required
+              rows={3}
+              value={reportBody}
+            />
+          </label>
+          <button type="submit">Add report</button>
+          {formMessage && <p className="form-message">{formMessage}</p>}
+        </form>
+      </section>
+
+      <section className="section">
+        <div className="section-heading">
           <p className="eyebrow">Reports need discussion</p>
           <h2>Reports and comments</h2>
         </div>
@@ -206,6 +347,24 @@ function App() {
                     <p key={comment.id}>{comment.body}</p>
                   ))}
                 </div>
+                <form
+                  className="comment-form"
+                  onSubmit={(event) => submitComment(event, report.id)}
+                >
+                  <input
+                    aria-label={`Comment on ${targetNames.get(report.targetId) ?? report.targetId}`}
+                    onChange={(event) =>
+                      setCommentBodies((current) => ({
+                        ...current,
+                        [report.id]: event.target.value,
+                      }))
+                    }
+                    placeholder="Add a comment"
+                    required
+                    value={commentBodies[report.id] ?? ''}
+                  />
+                  <button type="submit">Post</button>
+                </form>
               </article>
             )
           })}
