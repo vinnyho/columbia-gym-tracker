@@ -25,6 +25,8 @@ const databasePool =
           : undefined,
       })
     : null;
+let publishRealtimeUpdate: (payload: RealtimeUpdate) => Promise<void> | void = () =>
+  undefined;
 
 app.use(helmet());
 app.use(cors());
@@ -415,6 +417,14 @@ type ReportVote = {
   createdAt: string;
 };
 
+export type RealtimeUpdate = {
+  type: 'report_created' | 'comment_created' | 'vote_created';
+  reportId: string;
+  targetType?: 'equipment' | 'space';
+  targetId?: string;
+  createdAt: string;
+};
+
 type ReportRow = {
   id: string;
   target_type: 'equipment' | 'space';
@@ -565,6 +575,12 @@ app.post('/api/reports', async (req, res) => {
     }
   }
 
+  notifyFacilityUpdate({
+    type: 'report_created',
+    reportId: report.id,
+    targetType,
+    targetId,
+  });
   res.status(201).json(report);
 });
 
@@ -613,6 +629,7 @@ app.post('/api/reports/:id/comments', async (req, res) => {
     snapshot.comments.push(comment);
   }
 
+  notifyFacilityUpdate({ type: 'comment_created', reportId: report.id });
   res.status(201).json(comment);
 });
 
@@ -674,8 +691,20 @@ app.post('/api/reports/:id/votes', async (req, res) => {
     }
   }
 
+  notifyFacilityUpdate({
+    type: 'vote_created',
+    reportId: report.id,
+    targetType: report.targetType,
+    targetId: report.targetId,
+  });
   res.status(201).json(vote);
 });
+
+export function setRealtimePublisher(
+  publisher: (payload: RealtimeUpdate) => Promise<void> | void,
+) {
+  publishRealtimeUpdate = publisher;
+}
 
 function shouldUseDatabaseSsl(value: string) {
   return !value.includes('localhost') && !value.includes('127.0.0.1');
@@ -724,6 +753,17 @@ function isValidIssueType(targetType: unknown, issueType: string) {
   }
 
   return false;
+}
+
+function notifyFacilityUpdate(update: Omit<RealtimeUpdate, 'createdAt'>) {
+  Promise.resolve(
+    publishRealtimeUpdate({
+      ...update,
+      createdAt: new Date().toISOString(),
+    }),
+  ).catch((error) => {
+    console.error('Could not publish realtime update', error);
+  });
 }
 
 async function getReportsSnapshot(viewerEmail?: string) {

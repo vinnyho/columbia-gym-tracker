@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import type { Session } from '@supabase/supabase-js'
+import { io } from 'socket.io-client'
 import './App.css'
 
 type FacilitySnapshot = {
@@ -81,6 +82,7 @@ type Comment = {
 
 type Tab = 'all' | 'schedule' | 'report' | 'activity' | 'profile'
 type ActivityWindow = '24' | '48' | 'all'
+type RealtimeStatus = 'connecting' | 'live' | 'offline'
 type IssueOption = {
   label: string
   value: string
@@ -113,10 +115,12 @@ const spaceIssueOptions: IssueOption[] = [
 ]
 
 function App() {
+  const hasLoadedFacility = useRef(false)
   const [snapshot, setSnapshot] = useState<FacilitySnapshot | null>(null)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('connecting')
   const [activeTab, setActiveTab] = useState<Tab>('all')
   const [authEmail, setAuthEmail] = useState('')
   const [authMessage, setAuthMessage] = useState('')
@@ -132,7 +136,6 @@ function App() {
   const [reportBody, setReportBody] = useState('')
   const [commentBodies, setCommentBodies] = useState<Record<string, string>>({})
   const [formMessage, setFormMessage] = useState('')
-  const hasSnapshot = Boolean(snapshot)
   const authHeaders = useMemo(
     () =>
       session?.access_token
@@ -141,7 +144,7 @@ function App() {
     [session?.access_token],
   )
 
-  async function loadFacility(showLoading = true) {
+  const loadFacility = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) {
         setIsLoading(true)
@@ -168,83 +171,13 @@ function App() {
         setIsRefreshing(false)
       }
     }
-  }
+  }, [authHeaders])
 
   useEffect(() => {
-    let ignore = false
-
-    async function load() {
-      try {
-        setIsLoading(true)
-        setError('')
-        const response = await fetch(`${API_BASE_URL}/api/facility`)
-
-        if (!response.ok) {
-          throw new Error(`Request failed with ${response.status}`)
-        }
-
-        const data = (await response.json()) as FacilitySnapshot
-
-        if (!ignore) {
-          setSnapshot(data)
-        }
-      } catch {
-        if (!ignore) {
-          setError('Could not load the facility API. Start the backend on port 5001.')
-        }
-      } finally {
-        if (!ignore) {
-          setIsLoading(false)
-        }
-      }
-    }
-
-    load()
-
-    return () => {
-      ignore = true
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!hasSnapshot) return
-
-    let ignore = false
-
-    async function reloadWithSession() {
-      try {
-        setIsRefreshing(true)
-        setError('')
-        const response = await fetch(`${API_BASE_URL}/api/facility`, {
-          headers: authHeaders,
-        })
-
-        if (!response.ok) {
-          throw new Error(`Request failed with ${response.status}`)
-        }
-
-        const data = (await response.json()) as FacilitySnapshot
-
-        if (!ignore) {
-          setSnapshot(data)
-        }
-      } catch {
-        if (!ignore) {
-          setError('Could not load the facility API. Start the backend on port 5001.')
-        }
-      } finally {
-        if (!ignore) {
-          setIsRefreshing(false)
-        }
-      }
-    }
-
-    void reloadWithSession()
-
-    return () => {
-      ignore = true
-    }
-  }, [authHeaders, hasSnapshot])
+    const showLoading = !hasLoadedFacility.current
+    hasLoadedFacility.current = true
+    void loadFacility(showLoading)
+  }, [loadFacility])
 
   useEffect(() => {
     if (!supabase) return
@@ -268,6 +201,22 @@ function App() {
       subscription.unsubscribe()
     }
   }, [])
+
+  useEffect(() => {
+    const socket = io(API_BASE_URL)
+
+    setRealtimeStatus('connecting')
+    socket.on('connect', () => setRealtimeStatus('live'))
+    socket.on('disconnect', () => setRealtimeStatus('offline'))
+    socket.on('connect_error', () => setRealtimeStatus('offline'))
+    socket.on('facility:update', () => {
+      void loadFacility(false)
+    })
+
+    return () => {
+      socket.close()
+    }
+  }, [loadFacility])
 
   const targetNames = useMemo(() => {
     if (!snapshot) return new Map<string, string>()
@@ -531,6 +480,9 @@ function App() {
           >
             {isRefreshing ? 'Refreshing...' : 'Refresh'}
           </button>
+          <span className={`realtime-state ${realtimeStatus}`}>
+            Live {realtimeStatus}
+          </span>
         </div>
       </header>
 
