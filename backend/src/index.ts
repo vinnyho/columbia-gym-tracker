@@ -419,8 +419,8 @@ type ReportVote = {
 };
 
 export type RealtimeUpdate = {
-  type: 'report_created' | 'comment_created' | 'vote_created';
-  reportId: string;
+  type: 'report_created' | 'comment_created' | 'vote_created' | 'schedule_changed';
+  reportId?: string;
   targetType?: 'equipment' | 'space';
   targetId?: string;
   createdAt: string;
@@ -710,6 +710,10 @@ export function setRealtimePublisher(
   publisher: (payload: RealtimeUpdate) => Promise<void> | void,
 ) {
   publishRealtimeUpdate = publisher;
+}
+
+export function publishFacilityUpdate(update: Omit<RealtimeUpdate, 'createdAt'>) {
+  notifyFacilityUpdate(update);
 }
 
 function shouldUseDatabaseSsl(value: string) {

@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { createClient } from 'redis';
 import { Server } from 'socket.io';
-import app, { setRealtimePublisher } from './index.js';
+import app, { publishFacilityUpdate, setRealtimePublisher } from './index.js';
 import type { RealtimeUpdate } from './index.js';
 
 const PORT = Number(process.env.PORT ?? 5001);
@@ -64,6 +64,10 @@ async function startRealtime() {
 }
 
 void startRealtime();
+
+setInterval(() => {
+  publishFacilityUpdate({ type: 'schedule_changed' });
+}, 60 * 1000);
 
 server.listen(PORT, () => {
   console.log(`Gym tracker API listening on port ${PORT}`);
