@@ -308,7 +308,8 @@ dd {
   gap: 7px;
 }
 
-.filters select {
+.filters select,
+.filters input {
   min-height: 40px;
   border: 1px solid var(--line-strong);
   border-radius: 8px;
@@ -316,6 +317,10 @@ dd {
   color: var(--ink);
   font: inherit;
   padding: 0 10px;
+}
+
+.search-filter {
+  flex: 1 1 240px;
 }
 
 .form-card {

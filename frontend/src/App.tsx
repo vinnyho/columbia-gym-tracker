@@ -87,7 +87,9 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('all')
   const [authorName, setAuthorName] = useState('')
   const [floorFilter, setFloorFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [equipmentSearch, setEquipmentSearch] = useState('')
   const [targetValue, setTargetValue] = useState('')
   const [issueType, setIssueType] = useState('broken')
   const [reportBody, setReportBody] = useState('')
@@ -164,15 +166,35 @@ function App() {
   const ownCommentCount = snapshot
     ? snapshot.comments.filter((comment) => comment.authorName === displayName).length
     : 0
+  const normalizedEquipmentSearch = equipmentSearch.trim().toLowerCase()
   const visibleEquipment = snapshot
     ? snapshot.equipment.filter(
-        (item) =>
-          (floorFilter === 'all' || String(item.floor) === floorFilter) &&
-          (statusFilter === 'all' || item.status === statusFilter),
+        (item) => {
+          const searchableText = [
+            item.name,
+            item.zone,
+            item.category,
+            item.summary,
+            floorName(item.floor),
+          ]
+            .join(' ')
+            .toLowerCase()
+
+          return (
+            (floorFilter === 'all' || String(item.floor) === floorFilter) &&
+            (categoryFilter === 'all' || item.category === categoryFilter) &&
+            (statusFilter === 'all' || item.status === statusFilter) &&
+            (!normalizedEquipmentSearch ||
+              searchableText.includes(normalizedEquipmentSearch))
+          )
+        },
       )
     : []
   const floors = snapshot
     ? Array.from(new Set(snapshot.equipment.map((item) => item.floor))).sort()
+    : []
+  const categories = snapshot
+    ? Array.from(new Set(snapshot.equipment.map((item) => item.category))).sort()
     : []
 
   async function submitReport(event: FormEvent<HTMLFormElement>) {
@@ -367,6 +389,28 @@ function App() {
                   <option value="limited">Limited</option>
                   <option value="broken">Broken</option>
                 </select>
+              </label>
+              <label>
+                Category
+                <select
+                  onChange={(event) => setCategoryFilter(event.target.value)}
+                  value={categoryFilter}
+                >
+                  <option value="all">All categories</option>
+                  {categories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="search-filter">
+                Search
+                <input
+                  onChange={(event) => setEquipmentSearch(event.target.value)}
+                  placeholder="Bench, cable, treadmill..."
+                  value={equipmentSearch}
+                />
               </label>
             </div>
             <div className="list">
