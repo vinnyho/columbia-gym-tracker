@@ -90,7 +90,8 @@ type IssueOption = {
   value: string
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5001'
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:5001')
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 const DISPLAY_TIME_ZONE = 'America/New_York'
@@ -208,7 +209,9 @@ function App() {
   }, [])
 
   useEffect(() => {
-    const socket = io(API_BASE_URL)
+    const socket = io(API_BASE_URL || window.location.origin, {
+      transports: ['websocket'],
+    })
 
     setRealtimeStatus('connecting')
     socket.on('connect', () => setRealtimeStatus('live'))

@@ -69,6 +69,10 @@ setInterval(() => {
   publishFacilityUpdate({ type: 'schedule_changed' });
 }, 60 * 1000);
 
-server.listen(PORT, () => {
-  console.log(`Gym tracker API listening on port ${PORT}`);
-});
+if (!process.env.VERCEL) {
+  server.listen(PORT, () => {
+    console.log(`Gym tracker API listening on port ${PORT}`);
+  });
+}
+
+export default server;
