@@ -55,6 +55,33 @@
   color: var(--ink-muted);
 }
 
+.tabs {
+  margin-top: 18px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  display: inline-flex;
+  gap: 6px;
+}
+
+.tabs button {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-muted);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tabs button.active {
+  background: var(--teal);
+  color: white;
+}
+
 .section {
   margin-top: 28px;
 }
@@ -335,5 +362,11 @@ button:focus-visible {
 
   .grid {
     grid-template-columns: 1fr;
+  }
+
+  .tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
   }
 }
