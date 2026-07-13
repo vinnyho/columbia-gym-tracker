@@ -10,6 +10,7 @@ type FacilitySnapshot = {
   }
   spaces: Space[]
   scheduleBlocks: ScheduleBlock[]
+  spaceStatuses: SpaceStatus[]
   equipment: Equipment[]
   reports: Report[]
   comments: Comment[]
@@ -28,6 +29,12 @@ type ScheduleBlock = {
   activity: string
   startsAt: string
   endsAt: string
+}
+
+type SpaceStatus = {
+  spaceId: string
+  current: ScheduleBlock | null
+  next: ScheduleBlock | null
 }
 
 type Equipment = {
@@ -213,8 +220,8 @@ function App() {
         </div>
         <div className="grid">
           {snapshot.spaces.map((space) => {
-            const blocks = snapshot.scheduleBlocks.filter(
-              (block) => block.spaceId === space.id,
+            const status = snapshot.spaceStatuses.find(
+              (item) => item.spaceId === space.id,
             )
 
             return (
@@ -223,15 +230,25 @@ function App() {
                 <h3>{space.name}</h3>
                 <p>{space.location}</p>
                 <div className="schedule-list">
-                  {blocks.length === 0 && <p>No schedule blocks yet.</p>}
-                  {blocks.map((block) => (
-                    <div key={block.id}>
-                      <strong>{block.activity}</strong>
+                  <div>
+                    <span>Now</span>
+                    <strong>{status?.current?.activity ?? 'No active booking'}</strong>
+                    {status?.current && (
                       <span>
-                        {formatTime(block.startsAt)} - {formatTime(block.endsAt)}
+                        Until {formatTime(status.current.endsAt)}
                       </span>
-                    </div>
-                  ))}
+                    )}
+                  </div>
+                  <div>
+                    <span>Next</span>
+                    <strong>{status?.next?.activity ?? 'No upcoming booking'}</strong>
+                    {status?.next && (
+                      <span>
+                        {formatTime(status.next.startsAt)} -{' '}
+                        {formatTime(status.next.endsAt)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </article>
             )

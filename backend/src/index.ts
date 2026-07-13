@@ -7,6 +7,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+const CURRENT_TIME = new Date('2026-07-13T19:15:00-04:00');
 
 app.use(helmet());
 app.use(cors());
@@ -131,7 +132,29 @@ app.get('/health', (_req, res) => {
 });
 
 app.get('/api/facility', (_req, res) => {
-  res.json(snapshot);
+  res.json({
+    ...snapshot,
+    spaceStatuses: snapshot.spaces.map((space) => {
+      const blocks = snapshot.scheduleBlocks
+        .filter((block) => block.spaceId === space.id)
+        .sort(
+          (first, second) =>
+            new Date(first.startsAt).getTime() - new Date(second.startsAt).getTime(),
+        );
+      const current = blocks.find(
+        (block) =>
+          new Date(block.startsAt) <= CURRENT_TIME &&
+          new Date(block.endsAt) > CURRENT_TIME,
+      );
+      const next = blocks.find((block) => new Date(block.startsAt) > CURRENT_TIME);
+
+      return {
+        spaceId: space.id,
+        current: current ?? null,
+        next: next ?? null,
+      };
+    }),
+  });
 });
 
 app.get('/api/spaces', (_req, res) => {
