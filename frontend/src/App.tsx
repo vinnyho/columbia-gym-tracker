@@ -84,6 +84,7 @@ type IssueOption = {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5001'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+const DISPLAY_TIME_ZONE = 'America/New_York'
 const supabase =
   SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY
     ? createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
@@ -707,7 +708,7 @@ function App() {
       {activeTab === 'schedule' && (
         <section className="section">
           <div className="section-heading">
-            <p className="eyebrow">Upcoming activity</p>
+            <p className="eyebrow">Upcoming activity · Eastern time</p>
             <h2>Schedule</h2>
           </div>
           <div className="list">
@@ -906,6 +907,7 @@ function formatTime(value: string) {
   return new Intl.DateTimeFormat(undefined, {
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: DISPLAY_TIME_ZONE,
   }).format(new Date(value))
 }
 
@@ -915,6 +917,7 @@ function formatDateTime(value: string) {
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: DISPLAY_TIME_ZONE,
   }).format(new Date(value))
 }
 
