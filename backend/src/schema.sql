@@ -55,3 +55,28 @@ CREATE TABLE IF NOT EXISTS comments (
   body TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE OR REPLACE FUNCTION public.hook_require_columbia_email(event JSONB)
+RETURNS JSONB
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  email TEXT;
+BEGIN
+  email := lower(event->'user'->>'email');
+
+  IF email LIKE '%@columbia.edu' THEN
+    RETURN '{}'::JSONB;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'error', jsonb_build_object(
+      'message', 'Use a Columbia email address to sign up.',
+      'http_code', 403
+    )
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.hook_require_columbia_email TO supabase_auth_admin;
+REVOKE EXECUTE ON FUNCTION public.hook_require_columbia_email FROM authenticated, anon, public;
