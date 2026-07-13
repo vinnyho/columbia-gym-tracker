@@ -71,6 +71,11 @@
   font-weight: 800;
 }
 
+.facility-state a {
+  display: inline-block;
+  margin-right: 12px;
+}
+
 .refresh-button {
   min-height: 34px;
   width: fit-content;
@@ -770,6 +775,16 @@ button:focus-visible {
   .refresh-button,
   .realtime-state {
     margin-top: 8px;
+  }
+
+  .facility-state a {
+    display: block;
+    margin-right: 0;
+  }
+
+  .refresh-button {
+    display: block;
+    margin-top: 12px;
   }
 
   .tabs {
