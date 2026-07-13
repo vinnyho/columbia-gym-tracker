@@ -94,12 +94,46 @@
   color: white;
 }
 
+.segmented-control {
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  display: flex;
+  gap: 4px;
+}
+
+.segmented-control button {
+  min-height: 34px;
+  min-width: 48px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.segmented-control button.active {
+  background: var(--teal);
+  color: white;
+}
+
 .section {
   margin-top: 28px;
 }
 
 .section-heading {
   margin-bottom: 12px;
+}
+
+.split-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .section-heading h2 {
@@ -560,5 +594,14 @@ button:focus-visible {
   .profile-stats {
     display: grid;
     grid-template-columns: 1fr 1fr;
+  }
+
+  .split-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .segmented-control {
+    width: fit-content;
   }
 }

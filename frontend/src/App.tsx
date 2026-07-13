@@ -72,6 +72,7 @@ type Comment = {
 }
 
 type Tab = 'all' | 'schedule' | 'report' | 'activity' | 'profile'
+type ActivityWindow = '24' | '48' | 'all'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5001'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -101,6 +102,7 @@ function App() {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [equipmentSearch, setEquipmentSearch] = useState('')
+  const [activityWindow, setActivityWindow] = useState<ActivityWindow>('24')
   const [targetValue, setTargetValue] = useState('')
   const [issueType, setIssueType] = useState('broken')
   const [reportBody, setReportBody] = useState('')
@@ -231,6 +233,23 @@ function App() {
   const categories = snapshot
     ? Array.from(new Set(snapshot.equipment.map((item) => item.category))).sort()
     : []
+  const visibleReports = snapshot
+    ? snapshot.reports.filter((report) => {
+        if (activityWindow === 'all') return true
+
+        const hours = Number(activityWindow)
+        const reportComments = snapshot.comments.filter(
+          (comment) => comment.reportId === report.id,
+        )
+
+        return (
+          isWithinHours(report.createdAt, hours) ||
+          reportComments.some((comment) => isWithinHours(comment.createdAt, hours))
+        )
+      })
+    : []
+  const activityLabel =
+    activityWindow === 'all' ? 'all time' : `last ${activityWindow} hours`
 
   async function submitReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -626,15 +645,29 @@ function App() {
 
       {activeTab === 'activity' && (
         <section className="section">
-          <div className="section-heading">
-            <p className="eyebrow">Reports need discussion</p>
-            <h2>Reports and comments</h2>
+          <div className="section-heading split-heading">
+            <div>
+              <p className="eyebrow">Reports need discussion</p>
+              <h2>Reports and comments</h2>
+            </div>
+            <div className="segmented-control" aria-label="Activity time range">
+              {(['24', '48', 'all'] as ActivityWindow[]).map((window) => (
+                <button
+                  className={activityWindow === window ? 'active' : ''}
+                  key={window}
+                  onClick={() => setActivityWindow(window)}
+                  type="button"
+                >
+                  {window === 'all' ? 'All' : `${window}h`}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="grid">
-            {snapshot.reports.length === 0 && (
-              <div className="empty-state">No reports yet.</div>
+            {visibleReports.length === 0 && (
+              <div className="empty-state">No activity in {activityLabel}.</div>
             )}
-            {snapshot.reports.map((report) => {
+            {visibleReports.map((report) => {
               const comments = snapshot.comments.filter(
                 (comment) => comment.reportId === report.id,
               )
@@ -688,10 +721,14 @@ function App() {
       {activeTab === 'profile' && (
         <section className="section">
           <div className="section-heading">
-            <p className="eyebrow">Local identity</p>
+            <p className="eyebrow">
+              {signedInEmail ? 'Columbia account' : 'Columbia login'}
+            </p>
             <h2>Profile</h2>
             <p className="section-note">
-              This is just a temporary posting name. Accounts come later.
+              {signedInEmail
+                ? 'Your reports and comments post with this verified email.'
+                : 'Sign in once with your Columbia email before posting reports or comments.'}
             </p>
           </div>
           <div className="profile-card">
@@ -766,6 +803,12 @@ function floorName(floor: number) {
   if (floor === 2) return 'Second floor'
   if (floor === 3) return 'Top floor'
   return `Floor ${floor}`
+}
+
+function isWithinHours(value: string, hours: number) {
+  const timestamp = new Date(value).getTime()
+
+  return Date.now() - timestamp <= hours * 60 * 60 * 1000
 }
 
 function formatTime(value: string) {
