@@ -110,6 +110,7 @@ function App() {
   const [snapshot, setSnapshot] = useState<FacilitySnapshot | null>(null)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('all')
   const [authEmail, setAuthEmail] = useState('')
   const [authMessage, setAuthMessage] = useState('')
@@ -126,9 +127,13 @@ function App() {
   const [commentBodies, setCommentBodies] = useState<Record<string, string>>({})
   const [formMessage, setFormMessage] = useState('')
 
-  async function loadFacility() {
+  async function loadFacility(showLoading = true) {
     try {
-      setIsLoading(true)
+      if (showLoading) {
+        setIsLoading(true)
+      } else {
+        setIsRefreshing(true)
+      }
       setError('')
       const response = await fetch(`${API_BASE_URL}/api/facility`)
 
@@ -141,7 +146,11 @@ function App() {
     } catch {
       setError('Could not load the facility API. Start the backend on port 5001.')
     } finally {
-      setIsLoading(false)
+      if (showLoading) {
+        setIsLoading(false)
+      } else {
+        setIsRefreshing(false)
+      }
     }
   }
 
@@ -432,6 +441,14 @@ function App() {
           <a href={snapshot.facility.sourceUrl} rel="noreferrer" target="_blank">
             Columbia hours
           </a>
+          <button
+            className="refresh-button"
+            disabled={isRefreshing}
+            onClick={() => void loadFacility(false)}
+            type="button"
+          >
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
         </div>
       </header>
 

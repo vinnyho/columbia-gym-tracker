@@ -67,6 +67,25 @@
   font-weight: 800;
 }
 
+.refresh-button {
+  min-height: 34px;
+  width: fit-content;
+  margin-top: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: white;
+  color: var(--teal);
+  font: inherit;
+  font-weight: 800;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.refresh-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .tabs {
   margin-top: 18px;
   padding: 6px;
