@@ -8,7 +8,6 @@ import { Pool } from 'pg';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5001;
 const BLUE_GYM_ICS_URL =
   'https://calendar.google.com/calendar/ical/cuperec%40gmail.com/public/basic.ics';
 const SUPABASE_URL = process.env.SUPABASE_URL?.trim();
@@ -595,10 +594,6 @@ app.post('/api/reports/:id/comments', async (req, res) => {
   res.status(201).json(comment);
 });
 
-app.listen(PORT, () => {
-  console.log(`Gym tracker API listening on port ${PORT}`);
-});
-
 function shouldUseDatabaseSsl(value: string) {
   return !value.includes('localhost') && !value.includes('127.0.0.1');
 }
@@ -1120,3 +1115,5 @@ function formatMinutes(value: number) {
 
   return `${displayHour}:${String(minute).padStart(2, '0')} ${period}`;
 }
+
+export default app;
