@@ -92,6 +92,8 @@ type IssueOption = {
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:5001')
+const REALTIME_URL =
+  import.meta.env.VITE_REALTIME_URL ?? (import.meta.env.PROD ? '' : API_BASE_URL)
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 const DISPLAY_TIME_ZONE = 'America/New_York'
@@ -209,7 +211,12 @@ function App() {
   }, [])
 
   useEffect(() => {
-    const socket = io(API_BASE_URL || window.location.origin, {
+    if (!REALTIME_URL) {
+      setRealtimeStatus('offline')
+      return
+    }
+
+    const socket = io(REALTIME_URL, {
       transports: ['websocket'],
     })
 
