@@ -1,6 +1,7 @@
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
+import type { Request } from 'express';
 import helmet from 'helmet';
 import { Pool } from 'pg';
 
@@ -10,6 +11,8 @@ const app = express();
 const PORT = process.env.PORT || 5001;
 const BLUE_GYM_ICS_URL =
   'https://calendar.google.com/calendar/ical/cuperec%40gmail.com/public/basic.ics';
+const SUPABASE_URL = process.env.SUPABASE_URL?.trim();
+const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY?.trim();
 const databaseUrl = process.env.DATABASE_URL?.trim();
 const databasePool =
   databaseUrl && !databaseUrl.includes('user:password@localhost')
@@ -468,7 +471,14 @@ app.get('/api/reports', async (_req, res) => {
 });
 
 app.post('/api/reports', async (req, res) => {
-  const { targetType, targetId, issueType, body, authorName } = req.body;
+  const user = await getRequestUser(req);
+
+  if (!user) {
+    res.status(401).json({ error: 'Sign in with a Columbia email to post.' });
+    return;
+  }
+
+  const { targetType, targetId, issueType, body } = req.body;
   const targetList = targetType === 'space' ? snapshot.spaces : snapshot.equipment;
   const targetExists = targetList.some((target) => target.id === targetId);
 
@@ -489,7 +499,7 @@ app.post('/api/reports', async (req, res) => {
     targetType,
     targetId,
     issueType,
-    authorName: cleanAuthorName(authorName),
+    authorName: user.email,
     body: body.trim(),
     createdAt: new Date().toISOString(),
   };
@@ -531,6 +541,13 @@ app.post('/api/reports', async (req, res) => {
 });
 
 app.post('/api/reports/:id/comments', async (req, res) => {
+  const user = await getRequestUser(req);
+
+  if (!user) {
+    res.status(401).json({ error: 'Sign in with a Columbia email to comment.' });
+    return;
+  }
+
   let report: Report | null;
 
   try {
@@ -541,7 +558,7 @@ app.post('/api/reports/:id/comments', async (req, res) => {
     return;
   }
 
-  const { body, authorName } = req.body;
+  const { body } = req.body;
 
   if (!report || typeof body !== 'string' || body.trim().length === 0) {
     res.status(400).json({ error: 'Invalid comment' });
@@ -551,7 +568,7 @@ app.post('/api/reports/:id/comments', async (req, res) => {
   const comment: Comment = {
     id: `comment-${Date.now()}`,
     reportId: report.id,
-    authorName: cleanAuthorName(authorName),
+    authorName: user.email,
     body: body.trim(),
     createdAt: new Date().toISOString(),
   };
@@ -579,8 +596,37 @@ function shouldUseDatabaseSsl(value: string) {
   return !value.includes('localhost') && !value.includes('127.0.0.1');
 }
 
-function cleanAuthorName(value: unknown) {
-  return typeof value === 'string' && value.trim() ? value.trim() : 'Anonymous';
+async function getRequestUser(req: Request) {
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    return null;
+  }
+
+  const authorization = req.header('authorization');
+
+  if (!authorization?.startsWith('Bearer ')) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        authorization,
+      },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const user = (await response.json()) as { email?: unknown };
+    const email = typeof user.email === 'string' ? user.email.toLowerCase() : '';
+
+    return email.endsWith('@columbia.edu') ? { email } : null;
+  } catch (error) {
+    console.error('Could not verify Supabase user', error);
+    return null;
+  }
 }
 
 async function getReportsSnapshot() {

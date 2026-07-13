@@ -93,7 +93,6 @@ function App() {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('all')
-  const [authorName, setAuthorName] = useState('')
   const [authEmail, setAuthEmail] = useState('')
   const [authMessage, setAuthMessage] = useState('')
   const [isSendingAuthEmail, setIsSendingAuthEmail] = useState(false)
@@ -195,7 +194,7 @@ function App() {
     ])
   }, [snapshot])
   const signedInEmail = session?.user.email ?? ''
-  const displayName = signedInEmail || authorName.trim() || 'Anonymous'
+  const displayName = signedInEmail || 'Signed out'
   const ownReportCount = snapshot
     ? snapshot.reports.filter((report) => report.authorName === displayName).length
     : 0
@@ -235,18 +234,26 @@ function App() {
 
   async function submitReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
+    if (!session?.access_token) {
+      setFormMessage('Sign in with your Columbia email before posting.')
+      return
+    }
+
     const [targetType, targetId] = targetValue.split(':')
 
     try {
       setFormMessage('')
       const response = await fetch(`${API_BASE_URL}/api/reports`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           targetType,
           targetId,
           issueType,
-          authorName: displayName,
           body: reportBody,
         }),
       })
@@ -267,13 +274,22 @@ function App() {
 
   async function submitComment(event: FormEvent<HTMLFormElement>, reportId: string) {
     event.preventDefault()
+
+    if (!session?.access_token) {
+      setFormMessage('Sign in with your Columbia email before commenting.')
+      return
+    }
+
     const body = commentBodies[reportId] ?? ''
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/reports/${reportId}/comments`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ authorName: displayName, body }),
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ body }),
       })
 
       if (!response.ok) {
@@ -517,21 +533,12 @@ function App() {
             </p>
           </div>
           <form className="form-card" onSubmit={submitReport}>
-            {signedInEmail ? (
-              <div className="posting-summary">
-                <span>Posting as</span>
-                <strong>{signedInEmail}</strong>
-              </div>
-            ) : (
-              <label>
-                Your name
-                <input
-                  onChange={(event) => setAuthorName(event.target.value)}
-                  placeholder="Anonymous"
-                  value={authorName}
-                />
-              </label>
-            )}
+            <div className="posting-summary">
+              <span>{signedInEmail ? 'Posting as' : 'Posting requires login'}</span>
+              <strong>
+                {signedInEmail || 'Sign in from Profile with a Columbia email'}
+              </strong>
+            </div>
             <label>
               Target
               <select
@@ -579,7 +586,9 @@ function App() {
                 value={reportBody}
               />
             </label>
-            <button type="submit">Add report</button>
+            <button disabled={!signedInEmail} type="submit">
+              Add report
+            </button>
             {formMessage && <p className="form-message">{formMessage}</p>}
           </form>
         </section>
@@ -658,11 +667,16 @@ function App() {
                           [report.id]: event.target.value,
                         }))
                       }
-                      placeholder={`Add a comment as ${displayName}`}
+                      disabled={!signedInEmail}
+                      placeholder={
+                        signedInEmail ? `Add a comment as ${displayName}` : 'Sign in to comment'
+                      }
                       required
                       value={commentBodies[report.id] ?? ''}
                     />
-                    <button type="submit">Post</button>
+                    <button disabled={!signedInEmail} type="submit">
+                      Post
+                    </button>
                   </form>
                 </article>
               )
