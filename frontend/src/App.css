@@ -68,6 +68,12 @@
   font-size: 24px;
 }
 
+.section-note {
+  max-width: 620px;
+  margin-top: 6px !important;
+  color: var(--ink-muted);
+}
+
 .eyebrow {
   color: var(--ink-light);
   font-size: 12px;

@@ -132,21 +132,6 @@ function App() {
     ])
   }, [snapshot])
 
-  const reportTargets = useMemo(() => {
-    if (!snapshot) return []
-
-    return [
-      ...snapshot.equipment.map((item) => ({
-        label: item.name,
-        value: `equipment:${item.id}`,
-      })),
-      ...snapshot.spaces.map((space) => ({
-        label: space.name,
-        value: `space:${space.id}`,
-      })),
-    ]
-  }, [snapshot])
-
   async function submitReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const [targetType, targetId] = targetValue.split(':')
@@ -281,6 +266,9 @@ function App() {
         <div className="section-heading">
           <p className="eyebrow">Create a report</p>
           <h2>Report an issue</h2>
+          <p className="section-note">
+            Reports are temporary while this app is still using in-memory data.
+          </p>
         </div>
         <form className="form-card" onSubmit={submitReport}>
           <label>
@@ -291,11 +279,20 @@ function App() {
               value={targetValue}
             >
               <option value="">Select equipment or space</option>
-              {reportTargets.map((target) => (
-                <option key={target.value} value={target.value}>
-                  {target.label}
-                </option>
-              ))}
+              <optgroup label="Equipment">
+                {snapshot.equipment.map((item) => (
+                  <option key={item.id} value={`equipment:${item.id}`}>
+                    {item.name}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Spaces">
+                {snapshot.spaces.map((space) => (
+                  <option key={space.id} value={`space:${space.id}`}>
+                    {space.name}
+                  </option>
+                ))}
+              </optgroup>
             </select>
           </label>
           <label>
