@@ -69,7 +69,7 @@ type Comment = {
   createdAt: string
 }
 
-type Tab = 'all' | 'schedule' | 'report' | 'activity'
+type Tab = 'all' | 'schedule' | 'report' | 'activity' | 'profile'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5001'
 const tabs: { id: Tab; label: string }[] = [
@@ -77,6 +77,7 @@ const tabs: { id: Tab; label: string }[] = [
   { id: 'schedule', label: 'Schedule' },
   { id: 'report', label: 'Report' },
   { id: 'activity', label: 'Activity' },
+  { id: 'profile', label: 'Profile' },
 ]
 
 function App() {
@@ -154,6 +155,13 @@ function App() {
       ...snapshot.spaces.map((space) => [space.id, space.name] as const),
     ])
   }, [snapshot])
+  const displayName = authorName.trim() || 'Anonymous'
+  const ownReportCount = snapshot
+    ? snapshot.reports.filter((report) => report.authorName === displayName).length
+    : 0
+  const ownCommentCount = snapshot
+    ? snapshot.comments.filter((comment) => comment.authorName === displayName).length
+    : 0
 
   async function submitReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -483,6 +491,34 @@ function App() {
                 </article>
               )
             })}
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'profile' && (
+        <section className="section">
+          <div className="section-heading">
+            <p className="eyebrow">Local identity</p>
+            <h2>Profile</h2>
+            <p className="section-note">
+              This is just a temporary posting name. Accounts come later.
+            </p>
+          </div>
+          <div className="profile-card">
+            <div>
+              <p className="eyebrow">Posting as</p>
+              <h3>{displayName}</h3>
+            </div>
+            <div className="profile-stats">
+              <div>
+                <strong>{ownReportCount}</strong>
+                <span>reports</span>
+              </div>
+              <div>
+                <strong>{ownCommentCount}</strong>
+                <span>comments</span>
+              </div>
+            </div>
           </div>
         </section>
       )}
