@@ -14,6 +14,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL?.trim();
 const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY?.trim();
 const equipmentIssueTypes = new Set(['broken', 'fixed', 'cleanliness', 'missing_parts']);
 const spaceIssueTypes = new Set(['schedule_mismatch', 'cleanliness']);
+const reportVoteValues = new Set(['confirm', 'dispute']);
 const databaseUrl = process.env.DATABASE_URL?.trim();
 const databasePool =
   databaseUrl && !databaseUrl.includes('user:password@localhost')
@@ -366,6 +367,7 @@ const snapshot = {
       createdAt: '2026-07-13T19:12:00-04:00',
     },
   ],
+  votes: [],
 };
 
 app.get('/health', (_req, res) => {
@@ -392,6 +394,9 @@ type Report = {
   authorName: string;
   body: string;
   createdAt: string;
+  confirmCount?: number;
+  disputeCount?: number;
+  weightedScore?: number;
 };
 
 type Comment = {
@@ -399,6 +404,13 @@ type Comment = {
   reportId: string;
   authorName: string;
   body: string;
+  createdAt: string;
+};
+
+type ReportVote = {
+  reportId: string;
+  authorName: string;
+  value: 'confirm' | 'dispute';
   createdAt: string;
 };
 
@@ -420,6 +432,13 @@ type CommentRow = {
   created_at: Date | string;
 };
 
+type ReportVoteRow = {
+  report_id: string;
+  author_name: string;
+  value: 'confirm' | 'dispute';
+  created_at: Date | string;
+};
+
 let blueGymCalendarCache:
   | { expiresAt: number; blocks: ScheduleBlock[] }
   | null = null;
@@ -428,7 +447,7 @@ app.get('/api/facility', async (_req, res) => {
   const currentTime = new Date();
   const scheduleBlocks = await getScheduleBlocks(currentTime);
 
-  let reportData: { reports: Report[]; comments: Comment[] };
+  let reportData: { reports: Report[]; comments: Comment[]; votes: ReportVote[] };
 
   try {
     reportData = await getReportsSnapshot();
@@ -594,6 +613,59 @@ app.post('/api/reports/:id/comments', async (req, res) => {
   res.status(201).json(comment);
 });
 
+app.post('/api/reports/:id/votes', async (req, res) => {
+  const user = await getRequestUser(req);
+
+  if (!user) {
+    res.status(401).json({ error: 'Sign in with a Columbia email to vote.' });
+    return;
+  }
+
+  const { value } = req.body;
+
+  if (typeof value !== 'string' || !reportVoteValues.has(value)) {
+    res.status(400).json({ error: 'Invalid vote' });
+    return;
+  }
+
+  const report = await findReport(req.params.id);
+
+  if (!report) {
+    res.status(404).json({ error: 'Report not found' });
+    return;
+  }
+
+  const vote: ReportVote = {
+    reportId: report.id,
+    authorName: user.email,
+    value: value as ReportVote['value'],
+    createdAt: new Date().toISOString(),
+  };
+
+  try {
+    await saveReportVote(vote);
+  } catch (error) {
+    console.error('Could not save vote', error);
+    res.status(500).json({ error: 'Could not save vote' });
+    return;
+  }
+
+  if (!databasePool) {
+    const votes = snapshot.votes as ReportVote[];
+    const existingIndex = votes.findIndex(
+      (item) => item.reportId === vote.reportId && item.authorName === vote.authorName,
+    );
+
+    if (existingIndex === -1) {
+      votes.push(vote);
+    } else {
+      votes[existingIndex] = vote;
+    }
+  }
+
+  res.status(201).json(vote);
+});
+
 function shouldUseDatabaseSsl(value: string) {
   return !value.includes('localhost') && !value.includes('127.0.0.1');
 }
@@ -645,13 +717,16 @@ function isValidIssueType(targetType: unknown, issueType: string) {
 
 async function getReportsSnapshot() {
   if (!databasePool) {
+    const votes = snapshot.votes as ReportVote[];
+
     return {
-      reports: snapshot.reports as Report[],
+      reports: addVoteCounts(snapshot.reports as Report[], votes),
       comments: snapshot.comments as Comment[],
+      votes,
     };
   }
 
-  const [reportResult, commentResult] = await Promise.all([
+  const [reportResult, commentResult, voteResult] = await Promise.all([
     databasePool.query<ReportRow>(
       `SELECT id, target_type, target_id, issue_type, author_name, body, created_at
        FROM reports
@@ -662,11 +737,18 @@ async function getReportsSnapshot() {
        FROM comments
        ORDER BY created_at ASC`,
     ),
+    databasePool.query<ReportVoteRow>(
+      `SELECT report_id, author_name, value, created_at
+       FROM report_votes
+       ORDER BY created_at ASC`,
+    ),
   ]);
+  const votes = voteResult.rows.map(mapReportVoteRow);
 
   return {
-    reports: reportResult.rows.map(mapReportRow),
+    reports: addVoteCounts(reportResult.rows.map(mapReportRow), votes),
     comments: commentResult.rows.map(mapCommentRow),
+    votes,
   };
 }
 
@@ -706,6 +788,18 @@ async function saveComment(comment: Comment) {
   );
 }
 
+async function saveReportVote(vote: ReportVote) {
+  if (!databasePool) return;
+
+  await databasePool.query(
+    `INSERT INTO report_votes (report_id, author_name, value, created_at)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (report_id, author_name)
+     DO UPDATE SET value = EXCLUDED.value, created_at = EXCLUDED.created_at`,
+    [vote.reportId, vote.authorName, vote.value, vote.createdAt],
+  );
+}
+
 async function findReport(id: string) {
   if (!databasePool) {
     return (snapshot.reports as Report[]).find((item) => item.id === id) ?? null;
@@ -723,31 +817,83 @@ async function findReport(id: string) {
 
 function buildEquipmentStatus(reports: Report[]) {
   const equipment = snapshot.equipment.map((item) => ({ ...item }));
+  const reportsByTarget = new Map<string, Report[]>();
 
-  for (const report of reports.slice().reverse()) {
+  for (const report of reports) {
     if (report.targetType !== 'equipment') continue;
 
-    const item = equipment.find((candidate) => candidate.id === report.targetId);
-    if (!item) continue;
+    reportsByTarget.set(report.targetId, [
+      ...(reportsByTarget.get(report.targetId) ?? []),
+      report,
+    ]);
+  }
+
+  for (const item of equipment) {
+    const targetReports = reportsByTarget.get(item.id) ?? [];
+    const strongestReport = targetReports
+      .slice()
+      .sort((first, second) => Math.abs(second.weightedScore ?? 0) - Math.abs(first.weightedScore ?? 0))[0];
+
+    if (!strongestReport) continue;
+
+    const totalScore = targetReports.reduce(
+      (sum, report) => sum + (report.weightedScore ?? 0),
+      0,
+    );
 
     Object.assign(item, {
-      lastReportAt: report.createdAt,
-      lastReportAuthor: report.authorName,
-      lastReportIssueType: report.issueType,
+      lastReportAt: strongestReport.createdAt,
+      lastReportAuthor: strongestReport.authorName,
+      lastReportIssueType: strongestReport.issueType,
+      statusScore: Number(totalScore.toFixed(2)),
     });
 
-    if (report.issueType === 'broken' || report.issueType === 'missing_parts') {
+    if (totalScore >= 0.75) {
       item.status = 'broken';
-      item.summary = report.body;
+      item.summary = strongestReport.body;
     }
 
-    if (report.issueType === 'fixed') {
+    if (totalScore <= -0.75) {
       item.status = 'available';
-      item.summary = report.body;
+      item.summary = strongestReport.body;
     }
   }
 
   return equipment;
+}
+
+function addVoteCounts(reports: Report[], votes: ReportVote[]) {
+  return reports.map((report) => {
+    const reportVotes = votes.filter((vote) => vote.reportId === report.id);
+    const confirmCount = reportVotes.filter((vote) => vote.value === 'confirm').length;
+    const disputeCount = reportVotes.filter((vote) => vote.value === 'dispute').length;
+
+    return {
+      ...report,
+      confirmCount,
+      disputeCount,
+      weightedScore: getReportScore(report, confirmCount, disputeCount),
+    };
+  });
+}
+
+function getReportScore(report: Report, confirmCount: number, disputeCount: number) {
+  const direction = getReportDirection(report.issueType);
+
+  if (direction === 0) return 0;
+
+  const ageHours =
+    (Date.now() - new Date(report.createdAt).getTime()) / (60 * 60 * 1000);
+  const timeDecay = Math.pow(0.5, ageHours / 24);
+  const voteWeight = 1 + confirmCount * 0.5 - disputeCount * 0.75;
+
+  return Number((direction * Math.max(voteWeight, 0) * timeDecay).toFixed(2));
+}
+
+function getReportDirection(issueType: string) {
+  if (issueType === 'broken' || issueType === 'missing_parts') return 1;
+  if (issueType === 'fixed') return -1;
+  return 0;
 }
 
 function mapReportRow(row: ReportRow): Report {
@@ -768,6 +914,15 @@ function mapCommentRow(row: CommentRow): Comment {
     reportId: row.report_id,
     authorName: row.author_name,
     body: row.body,
+    createdAt: formatDatabaseTimestamp(row.created_at),
+  };
+}
+
+function mapReportVoteRow(row: ReportVoteRow): ReportVote {
+  return {
+    reportId: row.report_id,
+    authorName: row.author_name,
+    value: row.value,
     createdAt: formatDatabaseTimestamp(row.created_at),
   };
 }

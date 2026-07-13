@@ -590,6 +590,31 @@ dd {
   font-size: 13px;
 }
 
+.vote-actions {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vote-actions button {
+  min-height: 36px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: white;
+  color: var(--teal);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.vote-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .comment-form {
   margin-top: 14px;
   display: grid;

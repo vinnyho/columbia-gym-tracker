@@ -56,6 +56,14 @@ CREATE TABLE IF NOT EXISTS comments (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS report_votes (
+  report_id TEXT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+  author_name TEXT NOT NULL,
+  value TEXT NOT NULL CHECK (value IN ('confirm', 'dispute')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (report_id, author_name)
+);
+
 CREATE OR REPLACE FUNCTION public.hook_require_columbia_email(event JSONB)
 RETURNS JSONB
 LANGUAGE plpgsql

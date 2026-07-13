@@ -54,6 +54,7 @@ type Equipment = {
   lastReportAt?: string
   lastReportAuthor?: string
   lastReportIssueType?: string
+  statusScore?: number
 }
 
 type Report = {
@@ -64,6 +65,9 @@ type Report = {
   authorName: string
   body: string
   createdAt: string
+  confirmCount?: number
+  disputeCount?: number
+  weightedScore?: number
 }
 
 type Comment = {
@@ -352,6 +356,32 @@ function App() {
     }
   }
 
+  async function submitVote(reportId: string, value: 'confirm' | 'dispute') {
+    if (!session?.access_token) {
+      setFormMessage('Sign in with your Columbia email before voting.')
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/reports/${reportId}/votes`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ value }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Vote failed')
+      }
+
+      await loadFacility(false)
+    } catch {
+      setFormMessage('Could not save vote.')
+    }
+  }
+
   async function submitAuthEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -605,8 +635,10 @@ function App() {
                     <p>{item.summary}</p>
                     {item.lastReportAt && item.lastReportIssueType && (
                       <p className="row-meta">
-                        Last report: {titleCase(item.lastReportIssueType)} ·{' '}
+                        Signal: {titleCase(item.lastReportIssueType)} ·{' '}
                         {formatDateTime(item.lastReportAt)}
+                        {typeof item.statusScore === 'number' &&
+                          ` · score ${item.statusScore}`}
                       </p>
                     )}
                   </div>
@@ -771,7 +803,25 @@ function App() {
                   <p>{report.body}</p>
                   <p className="report-meta">
                     {report.authorName} · {formatDateTime(report.createdAt)}
+                    {typeof report.weightedScore === 'number' &&
+                      ` · score ${report.weightedScore}`}
                   </p>
+                  <div className="vote-actions" aria-label="Report votes">
+                    <button
+                      disabled={!signedInEmail}
+                      onClick={() => void submitVote(report.id, 'confirm')}
+                      type="button"
+                    >
+                      Confirm {report.confirmCount ?? 0}
+                    </button>
+                    <button
+                      disabled={!signedInEmail}
+                      onClick={() => void submitVote(report.id, 'dispute')}
+                      type="button"
+                    >
+                      Dispute {report.disputeCount ?? 0}
+                    </button>
+                  </div>
                   <div className="comments">
                     {comments.map((comment) => (
                       <p key={comment.id}>
