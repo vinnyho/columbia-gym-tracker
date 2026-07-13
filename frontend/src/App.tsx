@@ -413,14 +413,14 @@ function App() {
                 <optgroup label="Equipment">
                   {snapshot.equipment.map((item) => (
                     <option key={item.id} value={`equipment:${item.id}`}>
-                      {item.name}
+                      {item.name} - Level {item.floor}, {titleCase(item.status)}
                     </option>
                   ))}
                 </optgroup>
                 <optgroup label="Spaces">
                   {snapshot.spaces.map((space) => (
                     <option key={space.id} value={`space:${space.id}`}>
-                      {space.name}
+                      {space.name} - {titleCase(space.status)}
                     </option>
                   ))}
                 </optgroup>
