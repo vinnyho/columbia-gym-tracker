@@ -73,6 +73,10 @@ type Comment = {
 
 type Tab = 'all' | 'schedule' | 'report' | 'activity' | 'profile'
 type ActivityWindow = '24' | '48' | 'all'
+type IssueOption = {
+  label: string
+  value: string
+}
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5001'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -87,6 +91,16 @@ const tabs: { id: Tab; label: string }[] = [
   { id: 'report', label: 'Report' },
   { id: 'activity', label: 'Activity' },
   { id: 'profile', label: 'Profile' },
+]
+const equipmentIssueOptions: IssueOption[] = [
+  { value: 'broken', label: 'Broken' },
+  { value: 'fixed', label: 'Fixed / working again' },
+  { value: 'cleanliness', label: 'Cleanliness' },
+  { value: 'missing_parts', label: 'Missing parts' },
+]
+const spaceIssueOptions: IssueOption[] = [
+  { value: 'schedule_mismatch', label: 'Schedule mismatch' },
+  { value: 'cleanliness', label: 'Cleanliness' },
 ]
 
 function App() {
@@ -250,6 +264,9 @@ function App() {
     : []
   const activityLabel =
     activityWindow === 'all' ? 'all time' : `last ${activityWindow} hours`
+  const selectedTargetType = targetValue.split(':')[0]
+  const reportIssueOptions =
+    selectedTargetType === 'space' ? spaceIssueOptions : equipmentIssueOptions
 
   async function submitReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -376,6 +393,18 @@ function App() {
     setReportBody('')
     setFormMessage('')
     setActiveTab('report')
+  }
+
+  function changeReportTarget(value: string) {
+    const [nextTargetType] = value.split(':')
+    const nextIssueOptions =
+      nextTargetType === 'space' ? spaceIssueOptions : equipmentIssueOptions
+
+    setTargetValue(value)
+
+    if (!nextIssueOptions.some((option) => option.value === issueType)) {
+      setIssueType(nextIssueOptions[0].value)
+    }
   }
 
   if (isLoading) {
@@ -587,7 +616,7 @@ function App() {
             <label>
               Target
               <select
-                onChange={(event) => setTargetValue(event.target.value)}
+                onChange={(event) => changeReportTarget(event.target.value)}
                 required
                 value={targetValue}
               >
@@ -614,11 +643,11 @@ function App() {
                 onChange={(event) => setIssueType(event.target.value)}
                 value={issueType}
               >
-                <option value="broken">Broken</option>
-                <option value="fixed">Fixed / working again</option>
-                <option value="cleanliness">Cleanliness</option>
-                <option value="missing_parts">Missing parts</option>
-                <option value="schedule_mismatch">Schedule mismatch</option>
+                {reportIssueOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="wide-field">

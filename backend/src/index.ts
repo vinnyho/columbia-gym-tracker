@@ -13,6 +13,8 @@ const BLUE_GYM_ICS_URL =
   'https://calendar.google.com/calendar/ical/cuperec%40gmail.com/public/basic.ics';
 const SUPABASE_URL = process.env.SUPABASE_URL?.trim();
 const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY?.trim();
+const equipmentIssueTypes = new Set(['broken', 'fixed', 'cleanliness', 'missing_parts']);
+const spaceIssueTypes = new Set(['schedule_mismatch', 'cleanliness']);
 const databaseUrl = process.env.DATABASE_URL?.trim();
 const databasePool =
   databaseUrl && !databaseUrl.includes('user:password@localhost')
@@ -486,6 +488,7 @@ app.post('/api/reports', async (req, res) => {
     (targetType !== 'equipment' && targetType !== 'space') ||
     typeof targetId !== 'string' ||
     typeof issueType !== 'string' ||
+    !isValidIssueType(targetType, issueType) ||
     typeof body !== 'string' ||
     body.trim().length === 0 ||
     !targetExists
@@ -627,6 +630,18 @@ async function getRequestUser(req: Request) {
     console.error('Could not verify Supabase user', error);
     return null;
   }
+}
+
+function isValidIssueType(targetType: unknown, issueType: string) {
+  if (targetType === 'equipment') {
+    return equipmentIssueTypes.has(issueType);
+  }
+
+  if (targetType === 'space') {
+    return spaceIssueTypes.has(issueType);
+  }
+
+  return false;
 }
 
 async function getReportsSnapshot() {
